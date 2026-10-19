@@ -11,4 +11,5 @@ services:
       # Language shown at first load: IT, EN, FR, DE, ES or PT (default IT).
       # Users can change it at any time from the flags in the sidebar, no restart needed.
       APP_LANG: ${APP_LANG:-IT}
+      APP_UI: ${APP_UI:-legacy}
     restart: unless-stopped

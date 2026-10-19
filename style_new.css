@@ -1,0 +1,108 @@
+/* Claude-like palette and type: warm paper / charcoal, terracotta accent, serif headings.
+   Fonts load from Google Fonts when online and fall back to Georgia / system sans. */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&display=swap");
+
+:root {
+  --bg: #262624; --bg-elev: #30302e; --bg-input: #1f1e1d; --border: #43423e;
+  --text: #faf9f5; --text-muted: #a8a69c;
+  --accent: #d97757; --accent-2: #c6613f; --accent-contrast: #fff;
+  --shadow: 0 2px 14px rgba(0, 0, 0, .28); --radius: 12px;
+  --serif: "Source Serif 4", "Tiempos Headline", Georgia, "Times New Roman", serif;
+  --sans: Inter, "Styrene B", -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+:root:has(.theme-light) {
+  --bg: #faf9f5; --bg-elev: #ffffff; --bg-input: #f0eee6; --border: #e3e0d3;
+  --text: #141413; --text-muted: #6b6a64;
+  --shadow: 0 2px 14px rgba(20, 20, 19, .07);
+}
+html, body, .stApp, [data-testid="stAppViewContainer"], .stApp * { font-family: var(--sans); }
+.stApp h1, .stApp h2, .stApp h3, [data-testid="stExpander"] summary p { font-family: var(--serif) !important; font-weight: 500; letter-spacing: -.01em; }
+.stApp [data-testid="stIconMaterial"], .stApp [class*="material"] { font-family: "Material Symbols Rounded", "Material Icons" !important; }
+
+/* ============================================
+   NEW UI  (loaded after style.css, only when ?ui=new)
+   Reuses the tokens of style.css (dark/light).
+   ============================================ */
+[data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"], [data-testid="stHeader"] { display: none !important; }
+
+.stApp { background:
+  radial-gradient(900px 400px at 85% -10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent),
+  radial-gradient(700px 380px at 0% 0%, transparent, transparent),
+  var(--bg) !important; }
+
+.main .block-container, [data-testid="stMainBlockContainer"] {
+  max-width: 1180px !important; padding: 0 1rem 4rem !important; margin: 0 auto;
+}
+
+/* content column is narrower and centered; the top bar keeps the full width */
+[data-testid="stMainBlockContainer"] > [data-testid="stVerticalBlock"] > *:not(:has(> .st-key-topbar)) {
+  max-width: 880px; width: 100%; margin-inline: auto;
+}
+
+[data-testid="stMain"], [data-testid="stMainBlockContainer"] { padding-top: 0 !important; }
+
+/* ---------- sticky top bar ---------- */
+/* sticky goes on Streamlit's layout wrapper: the keyed block itself is only as tall as its wrapper */
+[data-testid="stLayoutWrapper"]:has(> .st-key-topbar) { position: sticky; top: 0; z-index: 1000; margin: 0 -1rem 1.5rem; }
+.st-key-topbar {
+  padding: .7rem 1.5rem .5rem;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 10px 30px -18px rgba(0,0,0,.5);
+  gap: .35rem !important;
+}
+.tb-title { font-family: -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 1.2rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.tb-title small { font-size: .65rem; font-weight: 600; -webkit-text-fill-color: var(--text-muted); margin-left: .3rem; }
+.tb-gh { white-space: nowrap; font-size: .72rem; font-weight: 700; color: var(--text-muted) !important; text-decoration: none; letter-spacing: .04em; }
+.tb-gh:hover { color: var(--accent) !important; }
+
+/* compact controls inside the bar */
+.st-key-topbar button { min-height: 2.1rem; padding: .15rem .6rem; font-size: .8rem; border-radius: 999px; }
+.st-key-topbar [data-testid="stWidgetLabel"] p { font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); }
+.st-key-topbar [data-testid="stForm"] { padding: 0; border: 0; }
+.st-key-topbar [data-testid="stHorizontalBlock"] { gap: .5rem; }
+.st-key-topbar [data-testid="stSelectSlider"] { padding-bottom: .1rem; }
+.st-key-topbar hr { display: none; }
+
+/* ---------- content ---------- */
+.main h2, .main h3 { font-weight: 700; letter-spacing: -.01em; }
+[data-testid="stAlert"] { border-radius: 14px; }
+
+/* radio cards: restyle the expanders */
+[data-testid="stExpander"] {
+  border: 1px solid var(--border) !important; border-radius: 16px !important;
+  background: var(--bg-elev) !important; box-shadow: var(--shadow);
+  margin-bottom: .6rem; overflow: hidden; transition: transform .15s ease, border-color .15s ease;
+}
+[data-testid="stExpander"]:hover { transform: translateY(-1px); border-color: var(--accent) !important; }
+[data-testid="stExpander"] summary { padding: .9rem 1.1rem; font-weight: 600; }
+[data-testid="stExpanderDetails"] { padding: .5rem 1.2rem 1.2rem; }
+
+/* centered, roomy audio player */
+audio { width: 100%; border-radius: 999px; }
+
+.st-key-topbar + div, [data-testid="stMainBlockContainer"] > div > [data-testid="stVerticalBlock"] { gap: 1rem; }
+
+@media (max-width: 760px) {
+  [data-testid="stLayoutWrapper"]:has(> .st-key-topbar) { position: static; }
+  .st-key-topbar { padding: .5rem 1rem .3rem; }
+  .st-key-topbar [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
+  .st-key-topbar [data-testid="stColumn"] { min-width: 45% !important; }
+  .st-key-topbar [data-testid="stColumn"]:has([class*="st-key-lang_"]) { min-width: 0 !important; flex: 1 1 13% !important; }
+}
+
+/* palette touch-ups: neutral alert, theme toggle in the bar tone */
+[data-testid="stAlert"] { background: var(--bg-elev) !important; border: 1px solid var(--border); }
+.st-key-btn_theme button, .st-key-btn_theme button[kind="secondary"] { background: var(--bg-elev) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+[data-testid="stSlider"] [role="slider"], [data-baseweb="slider"] [role="slider"] { background-color: var(--accent) !important; }
+
+/* small, minimal flag row */
+.st-key-topbar [class*="st-key-lang_"] button { min-height: 0 !important; height: 1.35rem; width: 100%; padding: 0 !important; border-radius: 6px; background-size: 72% auto !important; }
+.st-key-topbar [class*="st-key-lang_"] button[kind="primary"] { box-shadow: 0 0 0 1.5px var(--accent) !important; }
+.st-key-topbar [data-testid="stSelectbox"] { min-width: 0; }
+.tb-gh { display: block; text-align: right; }
+.st-key-topbar [data-testid="stHorizontalBlock"]:has([class*="st-key-lang_"]):not(:has([data-testid="stHorizontalBlock"])) { flex-wrap: nowrap !important; gap: .25rem !important; }
+.st-key-topbar [data-testid="stHorizontalBlock"]:has([class*="st-key-lang_"]):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; width: auto !important; }

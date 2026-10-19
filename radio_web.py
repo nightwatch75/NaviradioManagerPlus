@@ -10,6 +10,7 @@ import base64
 from pathlib import Path
 from lang import TRANSLATIONS, LANGUAGES
 from genres import GENRES
+from palettes import PALETTES, palette_css
 from urllib.parse import unquote
 st.set_page_config(
     page_title="Navidrome Radio Manager PLUS",
@@ -26,13 +27,39 @@ def toggle_theme():
     st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
     st.query_params["theme"] = st.session_state.theme
 
+# UI layout: "legacy" (sidebar) or "new" (sticky top bar). APP_UI is only the default; ?ui= keeps the choice on reload.
+if 'ui' not in st.session_state:
+    q_ui = st.query_params.get("ui")
+    d_ui = os.getenv("APP_UI", "legacy").lower()
+    st.session_state.ui = q_ui if q_ui in ("legacy", "new") else (d_ui if d_ui in ("legacy", "new") else "legacy")
+
+def set_ui(code):
+    st.session_state.ui = code
+    st.query_params["ui"] = code
+
+UI = st.session_state.ui
+
+# Color palette of the new UI (?palette=); every palette except "default" is dark-only
+if 'palette' not in st.session_state:
+    q_pal = st.query_params.get("palette")
+    st.session_state.palette = q_pal if q_pal in PALETTES else "default"
+
+def set_palette():
+    st.query_params["palette"] = st.session_state.palette
+
+PALETTE = st.session_state.palette if UI == "new" else "default"
+EFF_THEME = st.session_state.theme if PALETTE == "default" else "dark"
+
 def local_css(file_name):
     with open(file_name) as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 local_css("style.css")
-st.markdown(f"<style>:root {{ color-scheme: {st.session_state.theme}; }}</style>"
-            f"<div class='theme-marker theme-{st.session_state.theme}'></div>",
+if UI == "new":
+    local_css("style_new.css")
+    st.markdown(palette_css(PALETTE), unsafe_allow_html=True)
+st.markdown(f"<style>:root {{ color-scheme: {EFF_THEME}; }}</style>"
+            f"<div class='theme-marker theme-{EFF_THEME}'></div>",
             unsafe_allow_html=True)
 
 NAVIDROME_URL = os.getenv("NAVIDROME_URL", "")
@@ -54,10 +81,14 @@ if 'lang' not in st.session_state:
 FLAG_FILES = {"IT": "it", "EN": "gb", "FR": "fr", "DE": "de", "ES": "es", "PT": "pt"}
 
 @st.cache_data
+def flag_b64(code):
+    return base64.b64encode((Path(__file__).parent / "flags" / f"{FLAG_FILES[code]}.svg").read_bytes()).decode()
+
+@st.cache_data
 def flag_css():
     rules = []
-    for code, name in FLAG_FILES.items():
-        b64 = base64.b64encode((Path(__file__).parent / "flags" / f"{name}.svg").read_bytes()).decode()
+    for code in FLAG_FILES:
+        b64 = flag_b64(code)
         rules.append(f'.st-key-lang_{code} button, .st-key-lang_{code} button[kind="primary"] '
                      f'{{ background-image: url("data:image/svg+xml;base64,{b64}") !important; }}')
     return "<style>" + "\n".join(rules) + "</style>"
@@ -616,8 +647,9 @@ def rerun():
 
 st.markdown("<style>[data-testid='stVerticalBlock'] > div {transition: none !important; opacity: 1 !important;}</style>", unsafe_allow_html=True)
 
-st.title(T["title"])
-st.caption(f"v{APP_VERSION}")
+if UI == "legacy":
+    st.title(T["title"])
+    st.caption(f"v{APP_VERSION}")
 
 COUNTRY_CODES = [""] + [c for c, _ in get_country_codes()]
 GENRE_OPTIONS = get_genres()
@@ -630,74 +662,131 @@ def country_label(code):
 def quality_label(key):
     return T[f"quality_{key}"]
 
-with st.sidebar:
-
-    theme_icon = "☀️ " + T["theme_light"] if st.session_state.theme == "dark" else "🌙 " + T["theme_dark"]
-    st.button(theme_icon, on_click=toggle_theme, use_container_width=True, key="btn_theme")
-
-    st.header(T["search_header"])
-    st.divider()
-    # Bottone per gestione radio
-    manage_label = T["btn_manage_radios"]
-    if st.button(manage_label, use_container_width=True, type="secondary"):
-        st.cache_data.clear()
-        st.session_state.my_radios = get_all_my_radios_with_details()
-        switch_to_manage_mode()
-        st.rerun()
-    
-    st.divider()
-    
-    # Sezione ricerca originale (visibile solo in modalità ricerca)
-    if st.session_state.view_mode == "search":
-        st.caption(T["filters_hint"])
-        with st.form("search_form", border=False):
-            st.text_input(T["name_label"], key="search_name", placeholder=T["name_placeholder"])
-            st.multiselect(
-                T["genre_label"],
-                options=GENRE_OPTIONS,
-                key="search_genres",
-                accept_new_options=True,
-                placeholder=T["genre_placeholder"],
-                help=T["genre_help"],
-            )
-            st.selectbox(
-                T["country_code_label"],
-                options=COUNTRY_CODES,
-                key="search_cc",
-                format_func=country_label,
-            )
-            st.select_slider(
-                T["quality_label"],
-                options=list(QUALITY),
-                key="search_quality",
-                format_func=quality_label,
-            )
-            st.form_submit_button(T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
-        st.button(T["btn_reset_filters"], on_click=reset_filters, use_container_width=True)
-
-        if st.session_state.get('stage') == 1:
-            st.button(T["btn_home"], on_click=reset_home, use_container_width=True)
-    
-    # Sidebar in modalità gestione
-    else:
-        #st.subheader("📻 " + T["my_radios_title"])
-        
-        back_label = "🔙 " + T["back_to_search"]
-        if st.button(back_label, use_container_width=True):
-            st.session_state.view_mode = "search"
-            st.session_state.selected_radio = None
-            st.session_state.edit_mode = False
-            st.cache_data.clear()
-            st.session_state.my_radios = get_all_my_radios_with_details()
-            st.rerun()
-        
-        st.divider()
-        
-        if st.session_state.selected_radio:
-            back_list_label = "📋 " + T["back_to_list"]
-            if st.button(back_list_label, use_container_width=True, type="secondary"):
+def topbar():
+    """New UI: sticky top bar with the same widgets, keys and callbacks as the legacy sidebar."""
+    manage = st.session_state.view_mode == "manage"
+    with st.container(key="topbar"):
+        # row 1: title on the left, theme / language on the right
+        c_logo, c_right = st.columns([5, 6], vertical_alignment="center")
+        with c_logo:
+            st.markdown(f"<div class='tb-title'>{T['title']} <small>v{APP_VERSION}</small></div>", unsafe_allow_html=True)
+        with c_right:
+            r = st.columns([1.1, 2.4, .6, 2.2], vertical_alignment="center")
+            r[0].markdown("<a class='tb-gh' href='https://github.com/nightwatch75/NaviradioManagerPlus' target='_blank' title='GitHub'>GitHub</a>", unsafe_allow_html=True)
+            r[1].selectbox("Theme", list(PALETTES), key="palette", on_change=set_palette, label_visibility="collapsed",
+                           format_func=lambda k: f"{PALETTES[k][2]} {PALETTES[k][0]}")
+            r[2].button("☀️" if st.session_state.theme == "dark" else "🌙", on_click=toggle_theme, disabled=PALETTE != "default",
+                        use_container_width=True, key="btn_theme", help=T["theme_light"] if st.session_state.theme == "dark" else T["theme_dark"])
+            with r[3]:
+                for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES), gap="xxsmall"), LANGUAGES.items()):
+                    col.button(code, key=f"lang_{code}", help=f"{flag} {name}", on_click=set_lang, args=(code,),
+                               type="primary" if code == LANG_CODE else "secondary", use_container_width=True)
+        # row 2: navigation buttons
+        n = st.columns([1.4, 1.1, 1.1, 4], vertical_alignment="center")
+        if manage:
+            if n[0].button("🔙 " + T["back_to_search"], use_container_width=True, key="tb_back"):
+                st.session_state.view_mode = "search"
+                st.session_state.selected_radio = None
+                st.session_state.edit_mode = False
+                st.cache_data.clear()
+                st.session_state.my_radios = get_all_my_radios_with_details()
+                st.rerun()
+            if st.session_state.selected_radio and n[1].button("📋 " + T["back_to_list"], use_container_width=True, key="tb_list"):
                 back_to_radio_list()
                 st.rerun()
+        else:
+            if n[0].button(T["btn_manage_radios"], use_container_width=True, key="tb_manage"):
+                st.cache_data.clear()
+                st.session_state.my_radios = get_all_my_radios_with_details()
+                switch_to_manage_mode()
+                st.rerun()
+            n[1].button(T["btn_reset_filters"], on_click=reset_filters, use_container_width=True, key="tb_reset")
+        n[2].button("Legacy UI", on_click=set_ui, args=("legacy",), use_container_width=True, key="tb_ui")
+        if not manage:
+            with st.form("search_form", border=False):
+                f = st.columns([2.2, 3, 2.2, 2.2, 1.3], vertical_alignment="bottom")
+                f[0].text_input(T["name_label"], key="search_name", placeholder=T["name_placeholder"])
+                f[1].multiselect(T["genre_label"], options=GENRE_OPTIONS, key="search_genres", accept_new_options=True,
+                                 placeholder=T["genre_placeholder"], help=T["genre_help"])
+                f[2].selectbox(T["country_code_label"], options=COUNTRY_CODES, key="search_cc", format_func=country_label)
+                f[3].select_slider(T["quality_label"], options=list(QUALITY), key="search_quality", format_func=quality_label)
+                f[4].form_submit_button("🔍 " + T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
+
+if UI == "new":
+    topbar()
+else:
+    with st.sidebar:
+        st.button("✨ New UI", on_click=set_ui, args=("new",), use_container_width=True, key="sb_ui")
+
+if UI == "legacy":
+    with st.sidebar:
+
+        theme_icon = "☀️ " + T["theme_light"] if st.session_state.theme == "dark" else "🌙 " + T["theme_dark"]
+        st.button(theme_icon, on_click=toggle_theme, use_container_width=True, key="btn_theme")
+
+        st.header(T["search_header"])
+        st.divider()
+        # Bottone per gestione radio
+        manage_label = T["btn_manage_radios"]
+        if st.button(manage_label, use_container_width=True, type="secondary"):
+            st.cache_data.clear()
+            st.session_state.my_radios = get_all_my_radios_with_details()
+            switch_to_manage_mode()
+            st.rerun()
+    
+        st.divider()
+    
+        # Sezione ricerca originale (visibile solo in modalità ricerca)
+        if st.session_state.view_mode == "search":
+            st.caption(T["filters_hint"])
+            with st.form("search_form", border=False):
+                st.text_input(T["name_label"], key="search_name", placeholder=T["name_placeholder"])
+                st.multiselect(
+                    T["genre_label"],
+                    options=GENRE_OPTIONS,
+                    key="search_genres",
+                    accept_new_options=True,
+                    placeholder=T["genre_placeholder"],
+                    help=T["genre_help"],
+                )
+                st.selectbox(
+                    T["country_code_label"],
+                    options=COUNTRY_CODES,
+                    key="search_cc",
+                    format_func=country_label,
+                )
+                st.select_slider(
+                    T["quality_label"],
+                    options=list(QUALITY),
+                    key="search_quality",
+                    format_func=quality_label,
+                )
+                st.form_submit_button(T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
+            st.button(T["btn_reset_filters"], on_click=reset_filters, use_container_width=True)
+
+            if st.session_state.get('stage') == 1:
+                st.button(T["btn_home"], on_click=reset_home, use_container_width=True)
+    
+        # Sidebar in modalità gestione
+        else:
+            #st.subheader("📻 " + T["my_radios_title"])
+        
+            back_label = "🔙 " + T["back_to_search"]
+            if st.button(back_label, use_container_width=True):
+                st.session_state.view_mode = "search"
+                st.session_state.selected_radio = None
+                st.session_state.edit_mode = False
+                st.cache_data.clear()
+                st.session_state.my_radios = get_all_my_radios_with_details()
+                st.rerun()
+        
+            st.divider()
+        
+            if st.session_state.selected_radio:
+                back_list_label = "📋 " + T["back_to_list"]
+                if st.button(back_list_label, use_container_width=True, type="secondary"):
+                    back_to_radio_list()
+                    st.rerun()
 
 main_area = st.empty()
 
@@ -1217,27 +1306,28 @@ with col2:
 
 time.sleep(.1)
 
-with st.sidebar:  
-    v_safe = APP_VERSION.replace("-", "--")
-    footer_html = f"""
-    <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 10px;">
-        <a href="https://github.com/nightwatch75/NaviradioManagerPlus" target="_blank">
-            <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="Github">
-        </a>
-    </div>
-    <div style="text-align: center; margin-top: 5px;">
-        <img src="https://img.shields.io/badge/Ver.-{v_safe}-blue?style=flat-square" alt="Ver.">
-        <img src="https://img.shields.io/badge/Navi Stat.-{get_total_radios()}-blue?style=flat-square" alt="Navi Stat.">
-    </div>
-    """
+if UI == "legacy":
+    with st.sidebar:  
+        v_safe = APP_VERSION.replace("-", "--")
+        footer_html = f"""
+        <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 10px;">
+            <a href="https://github.com/nightwatch75/NaviradioManagerPlus" target="_blank">
+                <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="Github">
+            </a>
+        </div>
+        <div style="text-align: center; margin-top: 5px;">
+            <img src="https://img.shields.io/badge/Ver.-{v_safe}-blue?style=flat-square" alt="Ver.">
+            <img src="https://img.shields.io/badge/Navi Stat.-{get_total_radios()}-blue?style=flat-square" alt="Navi Stat.">
+        </div>
+        """
 
-with st.sidebar:
-    st.markdown(footer_html, unsafe_allow_html=True)
-    time.sleep(.1)
-    st.caption(f"🌐 {T['lang_label']}")
-    for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES)), LANGUAGES.items()):
-        col.button(code, key=f"lang_{code}", help=f"{flag} {name}", on_click=set_lang, args=(code,),
-                   type="primary" if code == LANG_CODE else "secondary", use_container_width=True)
+    with st.sidebar:
+        st.markdown(footer_html, unsafe_allow_html=True)
+        time.sleep(.1)
+        st.caption(f"🌐 {T['lang_label']}")
+        for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES)), LANGUAGES.items()):
+            col.button(code, key=f"lang_{code}", help=f"{flag} {name}", on_click=set_lang, args=(code,),
+                       type="primary" if code == LANG_CODE else "secondary", use_container_width=True)
 
 st.divider()
 st.caption("© 2026 NaviRadioManager Plus — fork of [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager) (MIT)")
