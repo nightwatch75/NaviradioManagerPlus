@@ -1,2 +1,20 @@
+# Secrets: real env files (the example is tracked)
 .env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Local test setup (your own compose, env, data): only the placeholder is tracked
+local/*
+!local/.gitkeep
+
+# Python
 __pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
