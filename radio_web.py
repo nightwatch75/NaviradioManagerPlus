@@ -1192,9 +1192,6 @@ with st.sidebar:
         <a href="https://github.com/nightwatch75/NaviradioManagerPlus" target="_blank">
             <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="Github">
         </a>
-        <a href="https://reddit.com/r/navidrome/comments/1rmklet/i_built_a_webgui_to_manage_navidrome_radio/" target="_blank">
-            <img src="https://img.shields.io/badge/Reddit-FF4500?style=for-the-badge&logo=reddit&logoColor=white" alt="Reddit">
-        </a>
     </div>
     <div style="text-align: center; margin-top: 5px;">
         <img src="https://img.shields.io/badge/Ver.-{v_safe}-blue?style=flat-square" alt="Ver.">
