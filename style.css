@@ -1,369 +1,263 @@
-[data-testid="stSidebar"]>div:first-child {
-  background: linear-gradient(to bottom,
-      #008c45 0%, #008c45 33.33%,
-      #f4f5f0 33.33%, #f4f5f0 66.66%,
-      #cd212a 66.66%, #cd212a 100%) !important;
-  background-attachment: fixed;
+/* ============================================
+   THEME TOKENS  (dark = default, light via .theme-light marker)
+   ============================================ */
+:root {
+  --bg: #0f1419;
+  --bg-elev: #172029;
+  --bg-input: #1e2a36;
+  --border: #2a3846;
+  --text: #e8eef4;
+  --text-muted: #8da0b3;
+  --accent: #ff6b35;
+  --accent-2: #ff3d71;
+  --accent-contrast: #ffffff;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --radius: 12px;
 }
 
-[data-testid="stSidebar"] .stMarkdown,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] .stSelectbox label,
-[data-testid="stSidebar"] .stTextInput label {
-  color: #1a1a1a !important;
-  font-weight: 500;
+/* :root (not .stApp) so dropdown portals attached to <body> get the tokens too */
+:root:has(.theme-light) {
+  --bg: #f5f7fa;
+  --bg-elev: #ffffff;
+  --bg-input: #eef2f6;
+  --border: #d9e1e9;
+  --text: #17202a;
+  --text-muted: #5c6b7a;
+  --shadow: 0 6px 24px rgba(20, 40, 60, 0.10);
 }
 
-* Assicura che i widget (input, select) siano ben visibili */ [data-testid="stSidebar"] div[data-baseweb="select"]>div,
-[data-testid="stSidebar"] div[data-baseweb="base-input"]>input {
-  background-color: rgba(255, 255, 255, 0.9) !important;
-  color: #1a1a1a !important;
-  border-radius: 4px;
+.theme-marker { display: none; }
+
+/* ============================================
+   BASE
+   ============================================ */
+html, body, .stApp, [data-testid="stAppViewContainer"] {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  font-family: -apple-system, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
 }
+
+[data-testid="stHeader"] { background: transparent !important; }
+
+.stApp h1, .stApp h2, .stApp h3, .stApp h4,
+.stApp p, .stApp label, .stApp li, .stApp span,
+[data-testid="stMarkdownContainer"], [data-testid="stWidgetLabel"] {
+  color: var(--text);
+}
+
+[data-testid="stCaptionContainer"], .stApp small { color: var(--text-muted) !important; }
+
+.stApp h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.main .block-container { padding-top: 2.5rem; max-width: 1100px; }
+
+hr { border-color: var(--border) !important; }
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+[data-testid="stSidebar"] {
+  background: var(--bg-elev) !important;
+  border-right: 1px solid var(--border);
+}
+
+[data-testid="stSidebar"] h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+div.stButton > button,
+[data-testid="stFormSubmitButton"] > button {
+  min-height: 44px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text);
+  font-weight: 600;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+div.stButton > button:hover,
+[data-testid="stFormSubmitButton"] > button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+
+button[kind="primary"],
+button[kind="primaryFormSubmit"] {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2)) !important;
+  border: none !important;
+  color: var(--accent-contrast) !important;
+}
+
+button[kind="primary"]:hover,
+button[kind="primaryFormSubmit"]:hover { color: var(--accent-contrast) !important; filter: brightness(1.08); }
+
+button p, button span, button div { color: inherit !important; }
+button[kind="primary"] *, button[kind="primaryFormSubmit"] * { color: var(--accent-contrast) !important; }
+
+/* gray badges (footer) keep the dark-theme colour inline: force readable text */
+.stMarkdownBadge { color: var(--text-muted) !important; }
+
+button:disabled { opacity: .45 !important; transform: none !important; box-shadow: none !important; }
+
+/* ============================================
+   INPUTS (text, select, multiselect, slider)
+   Streamlit changed its widget DOM between versions: both the
+   data-testid/role selectors (new) and baseweb ones (old) are kept.
+   ============================================ */
+[data-testid="stTextInputRootElement"],
+[data-testid="stSelectbox"] [role="group"],
+[data-testid="stMultiSelect"] [role="group"] {
+  background: var(--bg-input) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+}
+[data-testid="stTextInputRootElement"]:focus-within,
+[data-testid="stSelectbox"] [role="group"]:focus-within,
+[data-testid="stMultiSelect"] [role="group"]:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent) !important;
+}
+input, [role="combobox"] { color: var(--text) !important; -webkit-text-fill-color: var(--text) !important; }
+input::placeholder { color: var(--text-muted) !important; -webkit-text-fill-color: var(--text-muted) !important; }
+[data-testid*="Dropdown"] {
+  background: var(--bg-elev) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+  box-shadow: var(--shadow);
+}
+[role="option"] { color: var(--text) !important; }
+[role="option"]:hover, [role="option"][aria-selected="true"], [role="option"][data-focused="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
+}
+
+div[data-baseweb="input"], div[data-baseweb="base-input"], div[data-baseweb="select"] > div {
+  background: var(--bg-input) !important;
+  border-color: var(--border) !important;
+  border-radius: 10px !important;
+  color: var(--text) !important;
+}
+
+div[data-baseweb="base-input"] input, div[data-baseweb="select"] input {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  background: transparent !important;
+}
+
+div[data-baseweb="select"] > div:focus-within,
+div[data-baseweb="input"]:focus-within {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent) !important;
+}
+
+div[data-baseweb="select"] svg { fill: var(--text-muted) !important; }
+
+/* multiselect chips */
+span[data-baseweb="tag"] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
+  border-radius: 999px !important;
+}
+span[data-baseweb="tag"] span { color: var(--text) !important; }
+
+/* dropdown menus are rendered in a portal outside .stApp */
+div[data-baseweb="popover"] ul, div[data-baseweb="popover"] [role="listbox"],
+div[data-baseweb="menu"] {
+  background: var(--bg-elev) !important;
+  color: var(--text) !important;
+  border-radius: 10px;
+}
+div[data-baseweb="popover"] li { color: var(--text) !important; background: transparent !important; }
+div[data-baseweb="popover"] li:hover,
+div[data-baseweb="popover"] li[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent) 18%, transparent) !important;
+}
+
+[data-testid="stSlider"] [data-baseweb="slider"] div[role="slider"] { background: var(--accent) !important; }
+[data-testid="stSlider"] [data-testid="stThumbValue"],
+[data-testid="stSliderTickBarMin"], [data-testid="stSliderTickBarMax"] { color: var(--text-muted) !important; }
+
+/* ============================================
+   CARDS: expander, form, code, alerts
+   ============================================ */
+[data-testid="stExpander"] {
+  background: var(--bg-elev);
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow);
+  margin-bottom: .6rem;
+  overflow: hidden;
+}
+[data-testid="stExpander"] details, [data-testid="stExpander"] summary {
+  background: var(--bg-elev) !important;
+  color: var(--text) !important;
+}
+[data-testid="stExpander"] summary:hover { color: var(--accent) !important; }
+[data-testid="stExpander"] summary * { color: inherit !important; }
+
+[data-testid="stProgress"] [role="progressbar"],
+[data-testid="stProgress"] [role="progressbar"] > div:first-child { background: var(--border) !important; }
+[data-testid="stProgress"] [role="progressbar"] > div > div,
+[data-testid="stProgress"] [role="progressbar"] > div:nth-child(2) { background: var(--accent) !important; }
+
+[data-testid="stForm"] { border: none !important; padding: 0 !important; background: transparent !important; }
+
+[data-testid="stCode"], pre, code {
+  background: var(--bg-input) !important;
+  color: var(--text) !important;
+  border-radius: 8px;
+}
+
+[data-testid="stAlert"] { border-radius: var(--radius); }
 
 img {
-  border-radius: 8px !important;
-  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.3);
-  transition: transform 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px !important;
+  transition: transform .25s ease;
 }
+img:hover { transform: scale(1.08); }
 
-img:hover {
-  transform: scale(1.2);
-  box-shadow: 0px 6px 12px rgba(0, 0, 0, 0.5);
-}
+/* ============================================
+   AUDIO
+   ============================================ */
+audio { width: 100%; height: 40px; border-radius: 999px; transition: opacity .3s; opacity: .85; }
+audio:hover { opacity: 1; }
+html:has(.theme-dark) audio { filter: invert(100%) hue-rotate(180deg) brightness(1.5); }
 
-
-audio {
-  width: 100%;
-  height: 40px;
-  opacity: 0.5;
-  filter: invert(100%) hue-rotate(180deg) brightness(1.5);
-  transition: opacity 0.3s;
-}
-
-audio:hover {
-  opacity: 1;
-}
-
-.top-voted {
-  background-color: #FFD700;
-  color: black;
-  padding: 2px 8px;
-  border-radius: 10px;
-  font-weight: bold;
-  font-size: 12px;
-  animation: pulse 2s infinite;
-}
-
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-  }
-
-  50% {
-    transform: scale(1.05);
-  }
-
-  100% {
-    transform: scale(1);
-  }
-}
-
-
+/* ============================================
+   EQUALIZER (LIVE badge)
+   ============================================ */
 .eq-container {
-  display: flex;
+  display: inline-flex;
   align-items: flex-end;
   gap: 2px;
   width: 20px;
   height: 15px;
   margin-left: 10px;
-  display: inline-flex;
 }
+.eq-bar { width: 3px; background-color: var(--accent); animation: eq-stretch .5s ease-in-out infinite; }
+.eq-bar:nth-child(1) { animation-duration: .4s; }
+.eq-bar:nth-child(2) { animation-duration: .6s; }
+.eq-bar:nth-child(3) { animation-duration: .5s; }
+@keyframes eq-stretch { 0%, 100% { height: 4px; } 50% { height: 15px; } }
 
-.eq-bar {
-  width: 3px;
-  background-color: #ff4b1f;
-  animation: eq-stretch 0.5s ease-in-out infinite;
-}
-
-.eq-bar:nth-child(1) {
-  animation-duration: 0.4s;
-}
-
-.eq-bar:nth-child(2) {
-  animation-duration: 0.6s;
-}
-
-.eq-bar:nth-child(3) {
-  animation-duration: 0.5s;
-}
-
-@keyframes eq-stretch {
-
-  0%,
-  100% {
-    height: 4px;
-  }
-
-  50% {
-    height: 15px;
-  }
-}
-
-.custom-badge {
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  cursor: default;
-  display: flex;
-  align-items: center;
-  background-color: #555;
-  border-radius: 12px;
-  overflow: hidden;
-  width: max-content;
-  font-family: sans-serif;
-  font-size: 12px;
-  font-weight: bold;
-  white-space: nowrap;
-}
-
-.custom-badge:hover {
-  transform: scale(1.1);
-  box-shadow: 0px 8px 20px rgba(0, 0, 0, 0.4);
-  z-index: 10;
-}
-
-div.stButton>button {
-  height: 52px !important;
-  margin-top: 0px !important;
-}
-
-.status-box {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 52px !important;
-  background-color: #f0f2f6;
-  color: #31333F;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  border: 1px solid #d1d5db;
-  box-sizing: border-box;
-}
-
-
+/* ============================================
+   MOBILE
+   ============================================ */
 @media (max-width: 600px) {
-  .main .block-container {
-    padding-left: 1rem;
-    padding-right: 1rem;
-    padding-top: 1rem;
-  }
-
-  .stButton button {
-    width: 100%;
-    height: 3rem;
-  }
-}
-
-/* ============================================
-   BOTTONI SIDEBAR - VISIBILITÀ MIGLIORATA
-   ============================================ */
-
-/* Bottoni primari (type="primary") nella sidebar */
-[data-testid="stSidebar"] button[kind="primary"] {
-  background-color: #008c45 !important;
-  /* Verde italiano */
-  color: white !important;
-  border: 2px solid white !important;
-  font-weight: 600 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-}
-
-[data-testid="stSidebar"] button[kind="primary"]:hover {
-  background-color: #006b35 !important;
-  /* Verde più scuro */
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Bottoni secondari (type="secondary") nella sidebar */
-[data-testid="stSidebar"] button[kind="secondary"] {
-  background-color: #cd212a !important;
-  /* Rosso italiano */
-  color: white !important;
-  border: 2px solid white !important;
-  font-weight: 600 !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-}
-
-[data-testid="stSidebar"] button[kind="secondary"]:hover {
-  background-color: #a81b22 !important;
-  /* Rosso più scuro */
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Stato attivo/click */
-[data-testid="stSidebar"] button:active {
-  transform: translateY(1px) !important;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* Bottoni disabilitati nella sidebar */
-[data-testid="stSidebar"] button:disabled {
-  background-color: #888 !important;
-  color: #ccc !important;
-  border-color: #999 !important;
-  opacity: 0.7 !important;
-}
-
-/* Forza colore testo in tutti i bottoni sidebar */
-[data-testid="stSidebar"] button p,
-[data-testid="stSidebar"] button span,
-[data-testid="stSidebar"] button div {
-  color: white !important;
-  font-weight: 600 !important;
-}
-
-/* ============================================
-   HEADER SIDEBAR E DIVISORI
-   ============================================ */
-
-/* Header "Gestione Radio" più visibile */
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3,
-[data-testid="stSidebar"] .stSubheader {
-  color: #1a1a1a !important;
-  background-color: rgba(255, 255, 255, 0.7) !important;
-  padding: 8px 12px !important;
-  border-radius: 6px !important;
-  margin: 10px 0 !important;
-  text-align: center !important;
-  font-weight: 700 !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Divider visibile */
-[data-testid="stSidebar"] hr {
-  border-color: rgba(0, 0, 0, 0.3) !important;
-  border-width: 2px !important;
-  margin: 15px 0 !important;
-}
-
-/* ============================================
-   MIGLIORAMENTI WIDGET INPUT (già presenti ma rafforzati)
-   ============================================ */
-
-/* Selectbox e TextInput con bordo più marcato */
-[data-testid="stSidebar"] div[data-baseweb="select"]>div,
-[data-testid="stSidebar"] div[data-baseweb="base-input"]>input {
-  background-color: rgba(255, 255, 255, 0.95) !important;
-  color: #1a1a1a !important;
-  border: 2px solid #008c45 !important;
-  /* Bordo verde */
-  border-radius: 6px !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
-}
-
-/* Focus state */
-[data-testid="stSidebar"] div[data-baseweb="select"]>div:focus-within,
-[data-testid="stSidebar"] div[data-baseweb="base-input"]>input:focus {
-  border-color: #cd212a !important;
-  /* Rosso al focus */
-  box-shadow: 0 0 0 3px rgba(205, 33, 42, 0.2) !important;
-}
-
-/* ============================================
-   FORM EDIT RADIO - VISIBILITÀ MIGLIORATA
-   ============================================ */
-
-/* Sfondo del form container */
-[data-testid="stForm"] {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-  padding: 20px !important;
-  border-radius: 10px !important;
-  border: 2px solid #008c45 !important;
-}
-
-/* Input fields nel form */
-[data-testid="stForm"] input[type="text"] {
-  background-color: #2d2d2d !important;
-  /* Sfondo scuro */
-  color: #ffffff !important;
-  /* Testo bianco */
-  border: 2px solid #555 !important;
-  border-radius: 6px !important;
-  padding: 10px !important;
-  font-weight: 500 !important;
-}
-
-/* Placeholder nei form */
-[data-testid="stForm"] input[type="text"]::placeholder {
-  color: #aaa !important;
-  opacity: 1 !important;
-}
-
-/* Focus state per input nel form */
-[data-testid="stForm"] input[type="text"]:focus {
-  background-color: #1a1a1a !important;
-  /* Più scuro al focus */
-  border-color: #ff4b1f !important;
-  /* Arancione/rosso al focus */
-  box-shadow: 0 0 0 3px rgba(255, 75, 31, 0.3) !important;
-  outline: none !important;
-}
-
-/* Label dei campi nel form */
-[data-testid="stForm"] label {
-  color: #1a1a1a !important;
-  /* Testo scuro per contrasto con sfondo chiaro */
-  font-weight: 700 !important;
-  font-size: 14px !important;
-  margin-bottom: 5px !important;
-}
-
-/* Se il form è in una zona con sfondo scuro, inverti i colori delle label */
-[data-testid="stVerticalBlock"]:has([data-testid="stForm"]) label {
-  color: #ffffff !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
-}
-
-/* Bottoni nel form */
-[data-testid="stForm"] button[kind="primary"] {
-  background: linear-gradient(135deg, #008c45 0%, #006b35 100%) !important;
-  color: white !important;
-  border: none !important;
-  font-weight: 600 !important;
-}
-
-[data-testid="stForm"] button[kind="secondary"] {
-  background: linear-gradient(135deg, #666 0%, #444 100%) !important;
-  color: white !important;
-  border: none !important;
-  font-weight: 600 !important;
-}
-
-/* Fix Safari rendering */
-[data-testid="stVerticalBlock"] {
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
-/* Forza repaint */
-[data-testid="stVerticalBlock"]>div {
-  will-change: transform;
-}
-
-/* Riduci spazio sotto il titolo "Anteprima" */
-[data-testid="stVerticalBlock"] h3 {
-  margin-bottom: 0.5rem !important;
-  margin-top: 1rem !important;
-}
-
-/* Uniforma altezza bottoni */
-div.stButton>button {
-  height: 52px !important;
-  min-height: 52px !important;
-  max-height: 52px !important;
+  .main .block-container { padding: 1rem; }
+  .stButton button { width: 100%; }
 }

@@ -1,0 +1,10 @@
+services:
+  naviradiomanagerplus:
+    image: ghcr.io/nightwatch75/naviradiomanagerplus:latest
+    # To build from source instead of pulling the image:
+    # build: .
+    container_name: naviradiomanagerplus
+    ports:
+      - "8501:8501"
+    env_file: .env
+    restart: unless-stopped

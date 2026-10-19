@@ -12,18 +12,9 @@ address = "0.0.0.0"
 port = "8501"
 
 [theme]
-# Colore principale per pulsanti e accenti (un rosso vivo)
-primaryColor = "#cc0000"
-
-# --- IL TUO NUOVO VERDONE PETROLIO ---
-backgroundColor = "#073b4c"
-
-# Base chiara per la sidebar (sfondo per la bandiera)
-secondaryBackgroundColor = "#f0f0f0"
-
-# Testo chiaro per lo sfondo scuro
-textColor = "#fafafa"
-
+# Base dark; the light variant is applied by style.css (toggle in the sidebar)
+base = "dark"
+primaryColor = "#ff6b35"
 font = "sans-serif"
 
 [logger]

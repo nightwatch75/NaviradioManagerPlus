@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY radio_web.py .
 COPY lang.py .
+COPY genres.py .
 COPY style.css .
 COPY audio_handler.js .
 COPY .streamlit/ ./.streamlit/

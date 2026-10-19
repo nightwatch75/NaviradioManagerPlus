@@ -1,109 +1,84 @@
-# 📻 Navidrome Radio Manager (V6.2.4) - Update Mar 11 2026
+# 📻 NaviradioManager Plus
 
----
+Web app to search internet radio stations on [radio-browser.info](https://api.radio-browser.info/) and manage the radio stations of your [Navidrome](https://www.navidrome.org/) server.
 
-#### This tool uses the APIs of [https://api.radio-browser.info ](https://api.radio-browser.info ) to search for radio stations. (Thanks! ✨)
+> **This is a fork of [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager)** by **Bruno Piras**, released under the MIT license. All credit for the original idea, the Navidrome integration and the base application goes to the original author. This fork adds a new interface, advanced search filters and live station info (see below). Not affiliated with, or endorsed by, the original author.
 
----
+| Dark | Light |
+|------|-------|
+| ![Dark theme](docs/screenshot-dark.png) | ![Light theme](docs/screenshot-light.png) |
 
-## 🇮🇹 Descrizione (Italiano)
+## What this fork adds
 
-**Navidrome Radio Manager** è una web-app leggera basata su Streamlit per gestire le stazioni radio del tuo server **Navidrome**. Cerca tra migliaia di stazioni globali e gestisci la tua libreria con un clic. Grazie all'integrazione bidirezionale con le API Subsonic, l'app riconosce le radio già presenti e ti permette di aggiungerle, modificarle o rimuoverle istantaneamente tramite un'interfaccia web intuitiva.
+- **Modern interface**: card layout, rounded widgets, accent gradient, responsive sidebar.
+- **Dark / light theme** with a button in the sidebar. The choice is kept in the URL (`?theme=light`), so it survives a reload.
+- **Advanced search form**, every filter is optional and filters can be **combined** (AND):
+  - **Name** of the station.
+  - **Music genres**: about 600 genres (a curated list merged with the most used tags of radio-browser). You can pick several; the station must have all of them. You can also type a genre that is not in the list.
+  - **Country** by ISO 3166-1 two-letter code (`IT`, `US`, ...), with flag and name.
+  - **Quality** by bitrate: any, low (< 128 kbps), standard (128-191), high (≥ 192).
+- **Radio-browser protocol compliance**: server discovery through `/json/servers` with random choice and fallback to the other servers, and a descriptive `User-Agent` on every request.
+- **Now playing** for a selected station: current track and artist, stream info, and a "recently heard" list while the panel is open. It reads the ICY metadata of the stream, so it works only for stations that send it (most Shoutcast/Icecast ones). HLS streams and stations without metadata are reported as "not available".
+- **More station info** in the results: language, place, plays with trend, last working check, tags, HLS / SSL warnings.
+- Updated to current Streamlit (`st.iframe` instead of the removed `st.components.v1.html`).
 
-## 🇬🇧 Description (English)
+Everything from the original is kept: add / remove / edit stations, bulk add of a result page, duplicate detection, stream test, voting, Italian and English UI.
 
-**Navidrome Radio Manager** is a lightweight Streamlit-based web app to manage your **Navidrome** radio stations. Browse thousands of global stations and manage your library with one click. Thanks to bidirectional Subsonic API integration, the app recognizes existing stations and allows you to add, edit, or remove them instantly through an intuitive web interface.
+## Quick start
 
----
-
-## 🚀 Installazione / Installation
-
-Scegli il metodo più adatto alle tue esigenze:
-
-### Opzione A: Immagine Pronta (Consigliato / Recommended)
-
-🇮🇹 Usa l'immagine pre-compilata da GitHub Container Registry. Ideale per chi vuole solo usare l'app.
-🇬🇧 Use the pre-built image from GHCR. Perfect for users who just want to run the app.
-
-```yaml
-services:
-  radio-manager:
-    image: ghcr.io/brunopiras/naviradiomanager:latest
-    container_name: radio-manager
-    ports:
-      - "8501:8501"
-    environment:
-      - APP_LANG=EN   # IT or EN
-      - NAVIDROME_URL=http://YOUR_IP:4533
-      - NAVIDROME_USER=your_user
-      - NAVIDROME_PASS=your_password
-      - NAVIDROME_SALT=your_salt_here
-      - TZ=Europe/Rome #Your Country Time
-    ###Developers can use to modify on air and test##
-    #volumes:
-      #- /path/to/radio_web.py:/app/radio_web.py #Optional to developers
-      #- /path/to/lang.py:/app/lang.py #Optional to developers
-      #- /path/to/.streamlit/config.toml:/app/.streamlit/config.toml
-      #- /path/to/style.css:/app/style.css
-```
-
-### Opzione B: Build Locale (Sviluppatori / Developers)
-
-🇮🇹 Clona il repository e costruisci l'immagine localmente. Utile per personalizzare il codice.
-🇬🇧 Clone the repo and build the image locally. Best for customization.
+You need a running Navidrome and a user of it.
 
 ```bash
-git clone https://github.com/brunopiras/naviradiomanager.git 
-cd naviradiomanager
-docker-compose up -d --build
+git clone https://github.com/nightwatch75/NaviradioManagerPlus.git
+cd NaviradioManagerPlus
+cp .env.example .env
+# edit .env (see below), then:
+docker compose up -d
 ```
 
----
+Open <http://localhost:8501>.
 
-## 🛠️ Tech Stack & Features
+### Configuration (`.env`)
 
-* **UI**: Streamlit (Python) - *Featuring the custom "Petrol Blue" theme & Italian Flag sidebar!* 🇮🇹
-* **APIs**: Radio-Browser API & Subsonic API (Navidrome).
-* **Container**: Docker (python:3.14-slim-trixie).
-* **🎧 Live Preview**: Integrated HTML5 Audio Player to test streams before adding them.
-* **📊 Quality Visualizer**: Real-time bitrate analysis with color-coded progress bars (HQ/MQ/LQ).
-* **🔥 Popularity Engine**: Dynamic "TOP" badges for high-voted global stations.
-* **✅ Smart Library Sync**: Real-time Subsonic query. If a station is already in your DB, it shows a "Remove" button instead of "Add".
-* **🗑️ Instant Removal**: Delete radio stations from your Navidrome library directly from the search results.
-* **🔄 Reliability**: Uses the `all.api` mirror system with automatic fallback.
-* **📈 Stats Badge**: Real-time counter showing the total number of radios stored in your Navidrome DB.
-* **🗳️ Community Vote**: Integrated button to vote for your favorite stations on Radio-Browser.
-* **🌍 International Flags**: Visual country flags for each station (Note: Windows might have emoji rendering issues).
-* **🔇 Smart Playback**: Custom JS logic to ensure only one stream plays at a time.
+| Variable | Meaning |
+|----------|---------|
+| `APP_LANG` | `IT` or `EN` |
+| `TZ` | Time zone, for example `Europe/Rome` |
+| `NAVIDROME_URL` | Base URL of Navidrome, reachable from the container |
+| `NAVIDROME_USER` / `NAVIDROME_PASS` | Navidrome user and its **plain-text** password (a `$` must be written as `$$`) |
+| `NAVIDROME_SALT` | Any random string you choose, see below |
 
-### 🆕 New in V6.2 - Radio Management Dashboard
+**How to get the salt.** You do not retrieve it from Navidrome: you invent it. The app uses the Subsonic token authentication, `token = md5(password + salt)`, and sends both the token and the salt. Generate one with:
 
-* **📻 My Radios Dashboard**: Dedicated section to view all your Navidrome radio stations in a clean grid layout with favicons.
-* **🔍 Station Details**: Expandable detail view for each radio showing ID, name, homepage, stream URL, and vote count.
-* **✏️ Edit Stations**: Modify radio name, stream URL, and homepage URL directly via `updateInternetRadioStation` Subsonic API (requires admin privileges).
-* **📋 Copy URLs**: One-click copy buttons for both stream URL and homepage URL to clipboard.
-* **🧪 Stream Test**: Built-in connectivity test to verify if a stream URL is reachable before saving changes.
-* **📋 Quick Navigation**: "Back to List" button in sidebar and action section for fast navigation between detail view and radio grid.
-* **🎨 Unified URL Display**: Stream and homepage URLs now displayed in consistent code-block format for better readability.
+```bash
+openssl rand -hex 8
+```
 
-### 🆕 New in V6.2.4 - Radio Management Dashboard
-* ** Fix Some minor issues
+If Navidrome answers `Wrong username or password` while the web login works, the password was probably saved with a different `ND_PASSWORDENCRYPTIONKEY`: set the password again from the Navidrome user page.
 
-### 🎨 Quality Indicators
+## Try the image
 
-* 🟢 **High Quality**: >192 kbps (Audiophile choice)
-* 🔵 **Standard Quality**: 128-191 kbps (Solid stream)
-* 🟠 **Low Quality**: <128 kbps (Mobile friendly)
-* 🔥 **Top Voted**: Over 1000 community votes on Radio-Browser.
+Published image: `ghcr.io/nightwatch75/naviradiomanagerplus:latest` (built by GitHub Actions on every push to `main`, for `amd64` and `arm64`).
 
-## 📝 Note / Notes
+```bash
+docker run --rm -p 8501:8501 --env-file .env ghcr.io/nightwatch75/naviradiomanagerplus:latest
+```
 
-* **Safari Users**: ⚠️ Streamlit sometimes has problems with Safari (V6.1.9-RC5 should fix it). If you experience UI glitches, please try **Chrome** or **Firefox**.
-* **Removal Feature**: To remove a station, the app matches the exact URL saved in Navidrome. If the URL has been modified manually in Navidrome, the removal button might not find the ID.
-* **Edit Feature**: Editing stations requires Navidrome admin privileges. The edit operation preserves the station ID and all associated metadata (starred status, etc.).
+If the pull is denied, the package is still private: see [Publishing the image](#publishing-the-image).
 
----
+Build it yourself instead:
 
-###### Special thanks to @WB2024 ([https://github.com/WB2024/Add-Navidrome-Radios ](https://github.com/WB2024/Add-Navidrome-Radios ))
+```bash
+docker build -t naviradiomanagerplus .
+docker run --rm -p 8501:8501 --env-file .env naviradiomanagerplus
+```
 
-###### This idea came to me while using @WB2024's tool. While his tool interacts directly with the database via CLI, Navidrome Radio Manager uses the **Subsonic API** for a simple, fast, and intuitive web interface!
+## Publishing the image
+
+The workflow `.github/workflows/docker.yml` pushes the image to GitHub Container Registry (`ghcr.io`), not into the repository files. The first time GitHub creates the package it can be **private**. To make it public: GitHub profile → *Packages* → `naviradiomanagerplus` → *Package settings* → *Danger Zone* → *Change visibility* → *Public*.
+
+## Credits and license
+
+- Original project: [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager) by Bruno Piras (MIT).
+- Station directory: [radio-browser.info](https://www.radio-browser.info/), a community project. Please vote for the stations you like.
+- This fork keeps the original [MIT license](LICENSE).

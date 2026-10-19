@@ -4,20 +4,34 @@ import requests
 import hashlib
 import os
 import time
+import random
+import re
 from lang import TRANSLATIONS
+from genres import GENRES
 from urllib.parse import unquote
 st.set_page_config(
     page_title="NaviRadioManager",
     page_icon="📻",
-    layout="wide", 
-    initial_sidebar_state="auto" 
+    layout="wide",
+    initial_sidebar_state="auto"
 )
+
+# Theme lives in the URL (?theme=light|dark) so it survives a page reload
+if 'theme' not in st.session_state:
+    st.session_state.theme = "light" if st.query_params.get("theme") == "light" else "dark"
+
+def toggle_theme():
+    st.session_state.theme = "light" if st.session_state.theme == "dark" else "dark"
+    st.query_params["theme"] = st.session_state.theme
 
 def local_css(file_name):
     with open(file_name) as f:
         st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
 
 local_css("style.css")
+st.markdown(f"<style>:root {{ color-scheme: {st.session_state.theme}; }}</style>"
+            f"<div class='theme-marker theme-{st.session_state.theme}'></div>",
+            unsafe_allow_html=True)
 
 NAVIDROME_URL = os.getenv("NAVIDROME_URL", "")
 USERNAME = os.getenv("NAVIDROME_USER", "")
@@ -27,9 +41,119 @@ TOKEN = hashlib.md5((PASSWORD + SALT).encode("utf-8")).hexdigest()
 
 LANG_CODE = os.getenv("APP_LANG", "IT").upper()
 T = TRANSLATIONS.get(LANG_CODE, TRANSLATIONS["IT"])
-VERSION = f"6.2.4-{LANG_CODE}"
+VERSION = f"7.0.0-{LANG_CODE}"
 
 FLAGS = {"IT": "🇮🇹", "US": "🇺🇸", "GB": "🇬🇧", "FR": "🇫🇷", "DE": "🇩🇪", "ES": "🇪🇸", "CH": "🇨🇭"}
+
+# ========== NOW PLAYING (ICY in-stream metadata) ==========
+# radio-browser stores no track info. The only portable source is the stream itself:
+# Shoutcast/Icecast send "Icy-MetaData: 1" -> icy-* headers + a StreamTitle block every icy-metaint bytes.
+# HLS streams and stations that do not send it are reported as "not available".
+NP_POLL_SECONDS = 15
+NP_HISTORY_MAX = 12
+
+def _read_exact(raw, n):
+    buf = b""
+    while len(buf) < n:
+        chunk = raw.read(n - len(buf))
+        if not chunk:
+            break
+        buf += chunk
+    return buf
+
+def parse_stream_title(md):
+    """StreamTitle text -> {'title', 'artist'}; handles 'Artist - Title' and 'Title~Artist~...' variants."""
+    m = re.search(r"StreamTitle='(.*?)';?(?:\w+='|$)", md, re.S)
+    text = (m.group(1) if m else "").strip()
+    if "adw_ad='true'" in md and not text:
+        return {"title": "", "artist": "", "ad": True}
+    if "~" in text:
+        parts = text.split("~")
+        return {"title": parts[0].strip(), "artist": parts[1].strip() if len(parts) > 1 else ""}
+    if " - " in text:
+        artist, title = text.split(" - ", 1)
+        return {"title": title.strip(), "artist": artist.strip()}
+    return {"title": text, "artist": ""}
+
+def get_now_playing(url):
+    """Opens the stream, reads headers and one metadata block. Never cached: it must be live."""
+    if not url.lower().startswith(("http://", "https://")) or ".m3u8" in url.lower():
+        return {"error": "unsupported"}
+    try:
+        with requests.get(url, headers={"Icy-MetaData": "1", "User-Agent": RB_HEADERS["User-Agent"]},
+                          stream=True, timeout=(5, 8)) as r:
+            h = {k.lower(): v for k, v in r.headers.items()}
+            out = {"headers": {k: h[k] for k in ("icy-name", "icy-genre", "icy-description", "icy-br", "icy-url") if h.get(k)},
+                   "title": "", "artist": ""}
+            metaint = int(h.get("icy-metaint") or 0)
+            if not metaint:
+                out["error"] = "no_metadata"
+                return out
+            _read_exact(r.raw, metaint)
+            length = _read_exact(r.raw, 1)
+            block = _read_exact(r.raw, length[0] * 16) if length else b""
+            try:
+                md = block.decode("utf-8").strip("\0")
+            except UnicodeDecodeError:
+                md = block.decode("latin-1").strip("\0")
+            out.update(parse_stream_title(md))
+            return out
+    except Exception as e:
+        return {"error": str(e)[:120]}
+
+def md_escape(s):
+    return re.sub(r"([\\`*_{}\[\]()#+\-.!|<>~$&])", r"\\\1", s)
+
+@st.fragment(run_every=NP_POLL_SECONDS)
+def now_playing_panel(stream_url):
+    """Live panel for the selected station: current track, stream info and what was heard since opening."""
+    info = get_now_playing(stream_url)
+    history = st.session_state.setdefault("np_history", {}).setdefault(stream_url, [])
+    err = info.get("error")
+    st.markdown(f"**🎵 {T['np_title']}**")
+    if err and "headers" not in info:
+        st.warning(T["np_unavailable"] if err == "unsupported" else f"{T['np_unavailable']} ({err})")
+        return
+    if err == "no_metadata":
+        st.info(T["np_no_metadata"])
+    elif info.get("ad"):
+        st.info(T["np_ad"])
+    elif info.get("title"):
+        line = md_escape(info["title"]) + (f" — {md_escape(info['artist'])}" if info["artist"] else "")
+        st.markdown(f"### {line}")
+        entry = f"{info['artist']} — {info['title']}" if info["artist"] else info["title"]
+        if not history or history[0][1] != entry:
+            history.insert(0, (time.strftime("%H:%M:%S"), entry))
+            del history[NP_HISTORY_MAX:]
+    else:
+        st.info(T["np_none"])
+    labels = {"icy-name": T["np_station"], "icy-genre": T["np_genre"], "icy-description": T["np_desc"],
+              "icy-br": "kbps", "icy-url": "Web"}
+    st.caption(" · ".join(f"{labels[k]}: {md_escape(v)}" for k, v in info.get("headers", {}).items()))
+    if history:
+        st.markdown(f"**📜 {T['np_history']}**")
+        st.text("\n".join(f"{t}  {e}" for t, e in history))
+    st.caption(T["np_refresh_note"].format(s=NP_POLL_SECONDS))
+
+def station_info(s):
+    """Extra fields radio-browser already returns for a station (search result dict)."""
+    trend = s.get("clicktrend") or 0
+    arrow = "▲" if trend > 0 else "▼" if trend < 0 else "•"
+    where = ", ".join(x for x in (s.get("state"), s.get("country")) if x)
+    items = [
+        (T["info_language"], (s.get("language") or "—").title()),
+        (T["info_place"], where or "—"),
+        (T["info_clicks"], f"{s.get('clickcount', 0)} {arrow}{abs(trend) if trend else ''}"),
+        (T["info_checked"], (s.get("lastcheckoktime_iso8601") or "—")[:16].replace("T", " ")),
+    ]
+    cols = st.columns(len(items))
+    for col, (label, value) in zip(cols, items):
+        col.caption(label)
+        col.markdown(f"**{md_escape(str(value))}**")
+    flags = [f for f, on in (("HLS", s.get("hls")), ("SSL error", s.get("ssl_error"))) if on]
+    tags = [t.strip() for t in (s.get("tags") or "").split(",") if t.strip()][:15]
+    if tags or flags:
+        st.caption(" ".join(f"`{t}`" for t in tags + flags))
 
 def fix_url(url):
     if not url:
@@ -76,17 +200,60 @@ def find_flag_in_string(text):
             return get_flag_emoji(code)
     return None
 
-@st.cache_data(ttl=86400)
-def get_all_countries():
-    for mirror in ["at1", "de1", "nl1", "all"]:
+# ========== RADIO-BROWSER API (https://api.radio-browser.info/) ==========
+# Docs: discover the server pool via all.api.radio-browser.info/json/servers,
+# pick one at random, and always send a descriptive User-Agent.
+RB_HEADERS = {"User-Agent": "NaviRadioManager/7.0"}
+
+@st.cache_data(ttl=3600)
+def rb_servers():
+    try:
+        r = requests.get("https://all.api.radio-browser.info/json/servers", headers=RB_HEADERS, timeout=5)
+        names = sorted({s["name"] for s in r.json() if s.get("name")})
+        if names:
+            return names
+    except Exception:
+        pass
+    return ["de1.api.radio-browser.info"]
+
+def rb_get(path, params=None, timeout=10):
+    """GET on a random radio-browser server, falling back to the others."""
+    servers = rb_servers()
+    random.shuffle(servers)
+    last = None
+    for host in servers:
         try:
-            url = f"https://{mirror}.api.radio-browser.info/json/countries"
-            r = requests.get(url, timeout=5)
+            r = requests.get(f"https://{host}/json/{path}", params=params, headers=RB_HEADERS, timeout=timeout)
             if r.status_code == 200:
-                return sorted([c['name'] for c in r.json() if c['name']])
-        except:
-            continue
-    return ["Italy", "America", "France", "Germany", "United Kingdom"]
+                return r.json()
+            last = f"{host}: HTTP {r.status_code}"
+        except Exception as e:
+            last = f"{host}: {e}"
+    raise RuntimeError(last or "radio-browser unreachable")
+
+@st.cache_data(ttl=86400)
+def get_country_codes():
+    """[(ISO 3166-1 alpha-2 code, station count)] ordered by station count."""
+    try:
+        data = rb_get("countrycodes", {"order": "stationcount", "reverse": "true", "hidebroken": "true"})
+        return [(c["name"].upper(), c["stationcount"]) for c in data if len(c.get("name", "")) == 2]
+    except Exception:
+        return [("IT", 0), ("US", 0), ("GB", 0), ("FR", 0), ("DE", 0), ("ES", 0)]
+
+@st.cache_data(ttl=86400)
+def get_genres():
+    """Curated list merged with the tags most used on radio-browser."""
+    tags = set(GENRES)
+    try:
+        data = rb_get("tags", {"order": "stationcount", "reverse": "true", "hidebroken": "true", "limit": 500})
+        tags |= {t["name"].strip().lower() for t in data if t["stationcount"] >= 20 and 2 < len(t["name"]) < 30 and t["name"][0].isalpha()}
+    except Exception:
+        pass
+    return sorted(tags)
+
+# Quality presets -> bitrate range in kbps (same thresholds used by the result cards)
+QUALITY = {"any": (None, None), "low": (None, 127), "std": (128, 191), "high": (192, None)}
+PAGE_SIZE = 20
 
 def get_existing_radios():
     endpoint = f"{NAVIDROME_URL}/rest/getInternetRadioStations"
@@ -126,12 +293,6 @@ def get_all_my_radios_with_details():
         st.error(f"Errore recupero radio: {e}")
         return []
 
-def sync_to_sel():
-    st.session_state.search_country_text = ""
-
-def sync_to_text():
-    st.session_state.search_country_sel = ""
-
 # ========== INIZIALIZZAZIONE STATI SESSIONE ==========
 if 'stage' not in st.session_state: 
     st.session_state.stage = 0 
@@ -143,8 +304,8 @@ if 'search_reverse' not in st.session_state:
     st.session_state.search_reverse = "true"
 if 'search_name' not in st.session_state: 
     st.session_state.search_name = ""
-if 'search_country' not in st.session_state: 
-    st.session_state.search_country = ""
+if 'filters' not in st.session_state:
+    st.session_state.filters = {}
 if 'view_mode' not in st.session_state:
     st.session_state.view_mode = "search"
 if 'my_radios' not in st.session_state:
@@ -157,22 +318,35 @@ if 'editing_radio' not in st.session_state:
     st.session_state.editing_radio = None
 
 @st.cache_data(ttl=600)
-def search_radio(name, country, offset, reverse="true"):
+def search_radio(filters, offset, reverse="true"):
+    """filters: optional name, genres (list), countrycode, quality. Empty ones are ignored; the rest are ANDed."""
     params = {
-        "name": name, 
-        "country": country, 
-        "order": "votes", 
+        "order": "votes",
         "reverse": reverse,
-        "limit": 20, 
+        "limit": PAGE_SIZE,
         "offset": offset,
         "hidebroken": "true",
-        "format": "json"
     }
+    if filters.get("name"):
+        params["name"] = filters["name"]
+    if filters.get("genres"):
+        params["tagList"] = ",".join(filters["genres"])  # station must have all the tags
+    if filters.get("countrycode"):
+        params["countrycode"] = filters["countrycode"]
+    bmin, bmax = QUALITY.get(filters.get("quality", "any"), (None, None))
+    if bmin is not None:
+        params["bitrateMin"] = bmin
+    if bmax is not None:
+        params["bitrateMax"] = bmax
     try:
-        response = requests.get("https://all.api.radio-browser.info/json/stations/search", params=params, timeout=10)
-        return response.json()
-    except:
+        return rb_get("stations/search", params)
+    except Exception:
         return []
+
+def run_search(offset, reverse):
+    st.session_state.offset = offset
+    st.session_state.search_reverse = reverse
+    st.session_state.results = search_radio(st.session_state.filters, offset, reverse)
 
 def add_to_navidrome(station):
     endpoint = f"{NAVIDROME_URL}/rest/createInternetRadioStation"
@@ -275,14 +449,12 @@ def scroll_to_element(element_id):
     }});
     </script>
     """
-    st.components.v1.html(js, height=0)
+    st.iframe(js, height=1)
 
 def vote_for_station(uuid):
     try:
-        url = f"https://all.api.radio-browser.info/json/vote/{uuid}"
-        response = requests.get(url)
-        return response.ok
-    except:
+        return bool(rb_get(f"vote/{uuid}").get("ok"))
+    except Exception:
         return False
 
 def get_total_radios():
@@ -349,23 +521,21 @@ def bulk_add_radios():
         st.toast(toast_finish, icon="📻")
 
 def trigger_search():
-    name = st.session_state.get('search_name', "").strip()
-    t = st.session_state.get('search_country_text', "").strip()
-    s = st.session_state.get('search_country_sel', "")
-    country = t if t else s
-    
-    st.session_state.final_country = country.strip()
-    st.session_state.search_reverse = "true"
-    st.session_state.offset = 0
+    st.session_state.filters = {
+        "name": st.session_state.get('search_name', "").strip(),
+        "genres": [g.strip().lower() for g in st.session_state.get('search_genres', [])],
+        "countrycode": st.session_state.get('search_cc', ""),
+        "quality": st.session_state.get('search_quality', "any"),
+    }
     st.session_state.stage = 1
     st.session_state.view_mode = "search"
-    
-    st.session_state.results = search_radio(
-        name, 
-        st.session_state.final_country, 
-        0, 
-        "true"
-    )
+    run_search(0, "true")
+
+def reset_filters():
+    st.session_state.search_name = ""
+    st.session_state.search_genres = []
+    st.session_state.search_cc = ""
+    st.session_state.search_quality = "any"
 
 def reset_home():
     st.session_state.stage = 0
@@ -376,9 +546,8 @@ def reset_home():
     st.session_state.selected_radio = None
     st.session_state.edit_mode = False
     st.session_state.editing_radio = None
-    
-    if 'search_name' in st.session_state:
-        st.session_state.search_name = ""
+    st.session_state.filters = {}
+    reset_filters()
 
 def switch_to_manage_mode():
     """Passa alla modalità gestione radio e carica la lista"""
@@ -407,7 +576,7 @@ def copy_to_clipboard(text):
     navigator.clipboard.writeText(`{text}`);
     </script>
     """
-    st.components.v1.html(js_code, height=0)
+    st.iframe(js_code, height=1)
     st.toast("📋 Copiato negli appunti!", icon="📋")
 
 def rerun():
@@ -417,12 +586,24 @@ st.markdown("<style>[data-testid='stVerticalBlock'] > div {transition: none !imp
 
 st.title(T["title"])
 
-lista_ufficiale = [""] + get_all_countries()
+COUNTRY_CODES = [""] + [c for c, _ in get_country_codes()]
+GENRE_OPTIONS = get_genres()
+
+def country_label(code):
+    if not code:
+        return T["any"]
+    return f"{get_flag_emoji(code)} {code} — {WORLD_COUNTRIES.get(code.lower(), '')}".rstrip(" —")
+
+def quality_label(key):
+    return T[f"quality_{key}"]
 
 with st.sidebar:
 
+    theme_icon = "☀️ " + T["theme_light"] if st.session_state.theme == "dark" else "🌙 " + T["theme_dark"]
+    st.button(theme_icon, on_click=toggle_theme, use_container_width=True, key="btn_theme")
+
     st.header(T["search_header"])
-    st.divider()   
+    st.divider()
     # Bottone per gestione radio
     manage_label = T.get("btn_manage_radios", "📻 Navidrome Radio" if LANG_CODE == "IT" else "📻 Navidrome Radios")
     if st.button(manage_label, use_container_width=True, type="secondary"):
@@ -435,30 +616,32 @@ with st.sidebar:
     
     # Sezione ricerca originale (visibile solo in modalità ricerca)
     if st.session_state.view_mode == "search":
-        modi = ["Nome", "Nazione"] if LANG_CODE == "IT" else ["Name", "Country"]
-        mode = st.selectbox(T["mode"], modi)
-        st.text_input(
-            T["name_label"], 
-            key="search_name", 
-            on_change=trigger_search,
-            placeholder="Write and wait..."
-        )
-        if mode in ["Nazione", "Country"]:
-            st.write("---")
+        st.caption(T["filters_hint"])
+        with st.form("search_form", border=False):
+            st.text_input(T["name_label"], key="search_name", placeholder=T["name_placeholder"])
+            st.multiselect(
+                T["genre_label"],
+                options=GENRE_OPTIONS,
+                key="search_genres",
+                accept_new_options=True,
+                placeholder=T["genre_placeholder"],
+                help=T["genre_help"],
+            )
             st.selectbox(
-                T["country_sel"], 
-                options=lista_ufficiale, 
-                key="search_country_sel", 
-                on_change=trigger_search
+                T["country_code_label"],
+                options=COUNTRY_CODES,
+                key="search_cc",
+                format_func=country_label,
             )
-            st.text_input(
-                T["country_text"], 
-                key="search_country_text", 
-                placeholder="es: America, Italy...", 
-                on_change=trigger_search
+            st.select_slider(
+                T["quality_label"],
+                options=list(QUALITY),
+                key="search_quality",
+                format_func=quality_label,
             )
-        st.button(T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
-        
+            st.form_submit_button(T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
+        st.button(T["btn_reset_filters"], on_click=reset_filters, use_container_width=True)
+
         if st.session_state.get('stage') == 1:
             st.button(T["btn_home"], on_click=reset_home, use_container_width=True)
     
@@ -553,7 +736,10 @@ with main_area.container():
                     st.warning(T.get("no_preview", "Anteprima non disponibile") if LANG_CODE == "IT" else "Preview not available")
             except Exception as e:
                 st.error(f"Errore player: {str(e)}")
-            
+
+            if fixed_url:
+                now_playing_panel(fixed_url)
+
             st.divider()
             
             # ========== SEZIONE AZIONI CON EDIT FUNZIONANTE (API CORRETTA) ============
@@ -778,27 +964,13 @@ with main_area.container():
                 with col_top:
                     label_top = T.get("btn_sort_top", "🔥 Top Votes")
                     if st.button(label_top, use_container_width=True, key="btn_sort_top"):
-                        st.session_state.search_reverse = "true"
-                        st.session_state.offset = 0
-                        st.session_state.results = search_radio(
-                            st.session_state.search_name, 
-                            st.session_state.final_country, 
-                            0, 
-                            "true"
-                        )
+                        run_search(0, "true")
                         st.rerun()
                 
                 with col_low:
                     label_low = T.get("btn_sort_low", "🧊 Low Votes")
                     if st.button(label_low, use_container_width=True, key="btn_sort_low"):
-                        st.session_state.search_reverse = "false"
-                        st.session_state.offset = 0
-                        st.session_state.results = search_radio(
-                            st.session_state.search_name, 
-                            st.session_state.final_country, 
-                            0, 
-                            "false"
-                        )
+                        run_search(0, "false")
                         st.rerun()
 
                 st.write(f"### {T['results']}")
@@ -863,7 +1035,7 @@ with main_area.container():
                             st.markdown(f"""
                             <div style="display: flex; align-items: center;">
                                 <span style="font-weight: bold; margin-right: 10px;">🎧 Quick Preview:</span>
-                                <span style="color: #ff4b1f; font-size: 0.8rem; font-weight: bold;">LIVE</span>
+                                <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">LIVE</span>
                                 <div class="eq-container">
                                     <div class="eq-bar"></div>
                                     <div class="eq-bar"></div>
@@ -895,7 +1067,20 @@ with main_area.container():
                             st.markdown(f":{q_color}[{q_label}]")
                         
                         st.progress(min(bitrate / 320, 1.0))
-                        
+
+                        station_info(s)
+
+                        # One live panel at a time: polling every open card would hit every stream
+                        if stream_url:
+                            if st.session_state.get("np_url") == stream_url:
+                                if st.button("✖ " + T["np_close"], key=f"np_close_{s['stationuuid']}", use_container_width=True):
+                                    st.session_state.np_url = None
+                                    st.rerun()
+                                now_playing_panel(stream_url)
+                            elif st.button("🎵 " + T["np_btn"], key=f"np_{s['stationuuid']}", use_container_width=True):
+                                st.session_state.np_url = stream_url
+                                st.rerun()
+
                         f_col1, f_col2 = st.columns(2)
                         with f_col1:
                             st.caption(f"⭐ {votes} votes")
@@ -960,21 +1145,17 @@ with main_area.container():
                 with col_back:
                     if st.session_state.offset > 0:
                         if st.button("⬅️ " + ("Indietro" if LANG_CODE=="IT" else "Back"), use_container_width=True, key="nav_back"):
-                            st.session_state.offset -= 20
-                            current_rev = st.session_state.get('search_reverse', "true")
-                            st.session_state.results = search_radio(st.session_state.search_name, st.session_state.final_country, st.session_state.offset, current_rev)
+                            run_search(st.session_state.offset - PAGE_SIZE, st.session_state.search_reverse)
                             st.rerun()
 
                 with col_info:
-                    pagina_attuale = (st.session_state.offset // 20) + 1
-                    st.markdown(f"<div style='text-align: center; padding-top: 10px; font-weight: bold; color: #ff4b1f;'>Pag. {pagina_attuale}</div>", unsafe_allow_html=True)
+                    pagina_attuale = (st.session_state.offset // PAGE_SIZE) + 1
+                    st.markdown(f"<div style='text-align: center; padding-top: 10px; font-weight: bold; color: var(--accent);'>Pag. {pagina_attuale}</div>", unsafe_allow_html=True)
 
                 with col_next:
-                    if len(st.session_state.results) >= 20:
+                    if len(st.session_state.results) >= PAGE_SIZE:
                         if st.button(("Avanti" if LANG_CODE=="IT" else "Next") + " ➡️", use_container_width=True, key="nav_next"):
-                            st.session_state.offset += 20
-                            current_rev = st.session_state.get('search_reverse', "true")
-                            st.session_state.results = search_radio(st.session_state.search_name, st.session_state.final_country, st.session_state.offset, current_rev)
+                            run_search(st.session_state.offset + PAGE_SIZE, st.session_state.search_reverse)
                             st.rerun()
                     else:
                         st.button("🏁 " + ("Fine" if LANG_CODE=="IT" else "End"), disabled=True, use_container_width=True)
@@ -1008,7 +1189,7 @@ with st.sidebar:
     v_safe = str(VERSION).replace("-", "--")
     footer_html = f"""
     <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 10px;">
-        <a href="https://github.com/brunopiras/naviradiomanager" target="_blank">
+        <a href="https://github.com/nightwatch75/NaviradioManagerPlus" target="_blank">
             <img src="https://img.shields.io/badge/GitHub-181717?style=for-the-badge&logo=github&logoColor=white" alt="Github">
         </a>
         <a href="https://reddit.com/r/navidrome/comments/1rmklet/i_built_a_webgui_to_manage_navidrome_radio/" target="_blank">
@@ -1026,13 +1207,13 @@ with st.sidebar:
     time.sleep(.1)
 
 st.divider()
-st.caption(f"© 2026 NaviRadioManager")
+st.caption("© 2026 NaviRadioManager Plus — fork of [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager) (MIT)")
 
 def inject_js(file_path):
     try:
         with open(file_path, 'r') as f:
             js_code = f.read()
-            st.components.v1.html(f"<script>{js_code}</script>", height=0)
+            st.iframe(f"<script>{js_code}</script>", height=1)
     except FileNotFoundError:
         pass
 
