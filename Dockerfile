@@ -10,6 +10,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 
 COPY radio_web.py .
+COPY VERSION .
 COPY lang.py .
 COPY genres.py .
 COPY style.css .

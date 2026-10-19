@@ -70,7 +70,10 @@ def set_lang(code):
 
 LANG_CODE = st.session_state.lang
 T = TRANSLATIONS[LANG_CODE]
-VERSION = "7.0.0"
+# App version: single source of truth is the VERSION file (also checked against git tags in CI).
+APP_VERSION = (Path(__file__).parent / "VERSION").read_text().strip()
+# Subsonic protocol version sent in the "v" parameter (it is NOT the app version)
+SUBSONIC_API_VERSION = "1.16.1"
 
 FLAGS = {"IT": "🇮🇹", "US": "🇺🇸", "GB": "🇬🇧", "FR": "🇫🇷", "DE": "🇩🇪", "ES": "🇪🇸", "CH": "🇨🇭"}
 
@@ -286,7 +289,7 @@ PAGE_SIZE = 20
 
 def get_existing_radios():
     endpoint = f"{NAVIDROME_URL}/rest/getInternetRadioStations"
-    params = {"u": USERNAME, "t": TOKEN, "s": SALT, "v": VERSION, "c": "NaviRadioManager", "f": "json"}
+    params = {"u": USERNAME, "t": TOKEN, "s": SALT, "v": SUBSONIC_API_VERSION, "c": "NaviRadioManager", "f": "json"}
     try:
         r = requests.get(endpoint, params=params, timeout=10)
         data = r.json()
@@ -379,7 +382,7 @@ def run_search(offset, reverse):
 
 def add_to_navidrome(station):
     endpoint = f"{NAVIDROME_URL}/rest/createInternetRadioStation"
-    params = {"u": USERNAME, "t": TOKEN, "s": SALT, "v": VERSION, "c": "NaviRadioManager", "f": "json",
+    params = {"u": USERNAME, "t": TOKEN, "s": SALT, "v": SUBSONIC_API_VERSION, "c": "NaviRadioManager", "f": "json",
               "name": station['name'], "streamUrl": unquote(station['url_resolved']), "homepageUrl": unquote(station.get('homepage', ''))}
     # DEBUG
     #st.write(f"🔍 Parametri inviati: {params}")
@@ -492,7 +495,7 @@ def get_total_radios():
         'u': USERNAME,
         't': TOKEN,
         's': SALT,
-        'v': VERSION,
+        'v': SUBSONIC_API_VERSION,
         'c': 'NaviRadioManager',
         'f': 'json'
     }
@@ -614,6 +617,7 @@ def rerun():
 st.markdown("<style>[data-testid='stVerticalBlock'] > div {transition: none !important; opacity: 1 !important;}</style>", unsafe_allow_html=True)
 
 st.title(T["title"])
+st.caption(f"v{APP_VERSION}")
 
 COUNTRY_CODES = [""] + [c for c, _ in get_country_codes()]
 GENRE_OPTIONS = get_genres()
@@ -1214,7 +1218,7 @@ with col2:
 time.sleep(.1)
 
 with st.sidebar:  
-    v_safe = str(VERSION).replace("-", "--")
+    v_safe = APP_VERSION.replace("-", "--")
     footer_html = f"""
     <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 10px;">
         <a href="https://github.com/nightwatch75/NaviradioManagerPlus" target="_blank">

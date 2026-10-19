@@ -78,6 +78,17 @@ docker run --rm -p 8501:8501 --env-file .env naviradiomanagerplus
 
 The workflow `.github/workflows/docker.yml` pushes the image to GitHub Container Registry (`ghcr.io`), not into the repository files. The first time GitHub creates the package it can be **private**. To make it public: GitHub profile → *Packages* → `naviradiomanagerplus` → *Package settings* → *Danger Zone* → *Change visibility* → *Public*.
 
+## Versioning
+
+The app version is the single line in the [`VERSION`](VERSION) file (semantic versioning, started at `1.0.0`). It is shown under the page title and in the sidebar. To release:
+
+```bash
+echo 1.1.0 > VERSION && git commit -am "Release 1.1.0"
+git tag v1.1.0 && git push origin main v1.1.0
+```
+
+CI refuses the tag if it does not match `VERSION`, and publishes the image as `ghcr.io/nightwatch75/naviradiomanagerplus:1.1.0` besides `latest`, so you can pin a version in `compose.yaml`.
+
 ## Credits and license
 
 - Original project: [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager) by Bruno Piras (MIT).
