@@ -24,7 +24,7 @@ Web app to search internet radio stations on [radio-browser.info](https://api.ra
 - Updated to current Streamlit (`st.iframe` instead of the removed `st.components.v1.html`).
 
 Everything from the original is kept: add / remove / edit stations, bulk add of a result page, duplicate detection, stream test, voting.
-- **New UI (preview)**: a "✨ New UI" button in the sidebar switches to a redesigned layout with a sticky top bar (filters, links, language) and a centered content column; "Legacy UI" goes back. The new UI also has 16 color palettes (Tokyo Night, Kanagawa, Catppuccin, Dracula, Nord, Gruvbox and more). The choice is kept in the URL (`?ui=new&palette=tokyonight`).
+- **New UI (default)**: a redesigned layout with a sticky top bar (filters, theme, language) and a centered content column, with sort buttons (votes / country). The "Legacy UI" button on the right of the bar goes back to the classic sidebar layout (and "✨ New UI" returns). The new UI has 16 color palettes (Tokyo Night, Kanagawa, Catppuccin, Dracula, Nord, Gruvbox and more). The choice is kept in the URL (`?ui=new&palette=tokyonight`).
 
 ## Quick start
 
@@ -44,7 +44,7 @@ Open <http://localhost:8501>.
 
 | Variable | Meaning |
 |----------|---------|
-| `APP_UI` | Starting layout: `legacy` (default) or `new`. Users can switch from the UI |
+| `APP_UI` | Starting layout: `new` (default) or `legacy`. Users can switch from the UI |
 | `APP_LANG` | Starting interface language: `IT`, `EN`, `FR`, `DE`, `ES` or `PT` (default `IT`). Users can change it from the sidebar |
 | `TZ` | Time zone, for example `Europe/Rome` |
 | `NAVIDROME_URL` | Base URL of Navidrome, reachable from the container |

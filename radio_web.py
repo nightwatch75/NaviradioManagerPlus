@@ -2,6 +2,7 @@
 import streamlit as st
 import requests
 import hashlib
+import html
 import os
 import time
 import random
@@ -30,8 +31,8 @@ def toggle_theme():
 # UI layout: "legacy" (sidebar) or "new" (sticky top bar). APP_UI is only the default; ?ui= keeps the choice on reload.
 if 'ui' not in st.session_state:
     q_ui = st.query_params.get("ui")
-    d_ui = os.getenv("APP_UI", "legacy").lower()
-    st.session_state.ui = q_ui if q_ui in ("legacy", "new") else (d_ui if d_ui in ("legacy", "new") else "legacy")
+    d_ui = os.getenv("APP_UI", "new").lower()
+    st.session_state.ui = q_ui if q_ui in ("legacy", "new") else (d_ui if d_ui in ("legacy", "new") else "new")
 
 def set_ui(code):
     st.session_state.ui = code
@@ -209,10 +210,16 @@ def station_info(s):
         (T["info_clicks"], f"{s.get('clickcount', 0)} {arrow}{abs(trend) if trend else ''}"),
         (T["info_checked"], (s.get("lastcheckoktime_iso8601") or "—")[:16].replace("T", " ")),
     ]
+    cc = (s.get("countrycode") or "").lower()
     cols = st.columns(len(items))
-    for col, (label, value) in zip(cols, items):
+    for i, (col, (label, value)) in enumerate(zip(cols, items)):
         col.caption(label)
-        col.markdown(f"**{md_escape(str(value))}**")
+        if i == 1 and len(cc) == 2 and cc.isalpha():
+            # emoji flags are letters on some OSes: use a flag image (same external-image approach as the favicons)
+            col.markdown(f"<img src='https://flagcdn.com/20x15/{cc}.png' width='20' style='vertical-align:-2px;margin-right:6px'>"
+                         f"<b>{html.escape(str(value))}</b>", unsafe_allow_html=True)
+        else:
+            col.markdown(f"**{md_escape(str(value))}**")
     flags = [f for f, on in (("HLS", s.get("hls")), ("SSL error", s.get("ssl_error"))) if on]
     tags = [t.strip() for t in (s.get("tags") or "").split(",") if t.strip()][:15]
     if tags or flags:
@@ -363,6 +370,8 @@ if 'results' not in st.session_state:
     st.session_state.results = []
 if 'offset' not in st.session_state: 
     st.session_state.offset = 0
+if 'search_order' not in st.session_state:
+    st.session_state.search_order = "votes"  # radio-browser "order": votes | country
 if 'search_reverse' not in st.session_state: 
     st.session_state.search_reverse = "true"
 if 'search_name' not in st.session_state: 
@@ -381,10 +390,10 @@ if 'editing_radio' not in st.session_state:
     st.session_state.editing_radio = None
 
 @st.cache_data(ttl=600)
-def search_radio(filters, offset, reverse="true"):
+def search_radio(filters, offset, reverse="true", order="votes"):
     """filters: optional name, genres (list), countrycode, quality. Empty ones are ignored; the rest are ANDed."""
     params = {
-        "order": "votes",
+        "order": order,
         "reverse": reverse,
         "limit": PAGE_SIZE,
         "offset": offset,
@@ -406,10 +415,12 @@ def search_radio(filters, offset, reverse="true"):
     except Exception:
         return []
 
-def run_search(offset, reverse):
+def run_search(offset, reverse, order=None):
     st.session_state.offset = offset
     st.session_state.search_reverse = reverse
-    st.session_state.results = search_radio(st.session_state.filters, offset, reverse)
+    if order:
+        st.session_state.search_order = order
+    st.session_state.results = search_radio(st.session_state.filters, offset, reverse, st.session_state.search_order)
 
 def add_to_navidrome(station):
     endpoint = f"{NAVIDROME_URL}/rest/createInternetRadioStation"
@@ -592,7 +603,7 @@ def trigger_search():
     }
     st.session_state.stage = 1
     st.session_state.view_mode = "search"
-    run_search(0, "true")
+    run_search(0, "true", "votes")
 
 def reset_filters():
     st.session_state.search_name = ""
@@ -671,7 +682,7 @@ def topbar():
         with c_logo:
             st.markdown(f"<div class='tb-title'>{T['title']} <small>v{APP_VERSION}</small></div>", unsafe_allow_html=True)
         with c_right:
-            r = st.columns([1.1, 2.4, .6, 2.2], vertical_alignment="center")
+            r = st.columns([1.0, 2.2, .55, 2.0, 1.1], vertical_alignment="center")
             r[0].markdown("<a class='tb-gh' href='https://github.com/nightwatch75/NaviradioManagerPlus' target='_blank' title='GitHub'>GitHub</a>", unsafe_allow_html=True)
             r[1].selectbox("Theme", list(PALETTES), key="palette", on_change=set_palette, label_visibility="collapsed",
                            format_func=lambda k: f"{PALETTES[k][2]} {PALETTES[k][0]}")
@@ -681,8 +692,9 @@ def topbar():
                 for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES), gap="xxsmall"), LANGUAGES.items()):
                     col.button(code, key=f"lang_{code}", help=f"{flag} {name}", on_click=set_lang, args=(code,),
                                type="primary" if code == LANG_CODE else "secondary", use_container_width=True)
+            r[4].button("Legacy UI", on_click=set_ui, args=("legacy",), use_container_width=True, key="tb_ui")
         # row 2: navigation buttons
-        n = st.columns([1.4, 1.1, 1.1, 4], vertical_alignment="center")
+        n = st.columns([1.4, 1.1, 5.5], vertical_alignment="center")
         if manage:
             if n[0].button("🔙 " + T["back_to_search"], use_container_width=True, key="tb_back"):
                 st.session_state.view_mode = "search"
@@ -700,8 +712,6 @@ def topbar():
                 st.session_state.my_radios = get_all_my_radios_with_details()
                 switch_to_manage_mode()
                 st.rerun()
-            n[1].button(T["btn_reset_filters"], on_click=reset_filters, use_container_width=True, key="tb_reset")
-        n[2].button("Legacy UI", on_click=set_ui, args=("legacy",), use_container_width=True, key="tb_ui")
         if not manage:
             with st.form("search_form", border=False):
                 f = st.columns([2.2, 3, 2.2, 2.2, 1.3], vertical_alignment="bottom")
@@ -710,7 +720,9 @@ def topbar():
                                  placeholder=T["genre_placeholder"], help=T["genre_help"])
                 f[2].selectbox(T["country_code_label"], options=COUNTRY_CODES, key="search_cc", format_func=country_label)
                 f[3].select_slider(T["quality_label"], options=list(QUALITY), key="search_quality", format_func=quality_label)
-                f[4].form_submit_button("🔍 " + T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
+                f[4].form_submit_button(T["btn_reset_filters"], on_click=reset_filters, use_container_width=True, key="tb_reset")
+                with st.columns([4, 2, 4])[1]:
+                    st.form_submit_button("🔍 " + T["btn_search"], on_click=trigger_search, use_container_width=True, type="primary")
 
 if UI == "new":
     topbar()
@@ -1068,7 +1080,7 @@ with main_area.container():
     # ============================================
     else:
         if st.session_state.stage == 0:
-            st.info(T["welcome"])
+            st.info(T["welcome_new"] if UI == "new" else T["welcome"])
             
         elif st.session_state.stage == 1:
             existing_urls = get_existing_radios()  
@@ -1077,22 +1089,33 @@ with main_area.container():
                 if st.button(btn_label, use_container_width=True, type="primary"):
                     bulk_add_radios()
                     
-                col_home, col_top, col_low = st.columns([2, 1, 1])
+                if UI == "new":
+                    # sort buttons (radio-browser "order"): clicking the active one flips the direction
+                    sc = st.columns([1, 1, 3])
+                    for col, (okey, default_rev, tkey) in zip(sc, (("votes", "true", "sort_votes"), ("country", "false", "sort_country"))):
+                        active = st.session_state.search_order == okey
+                        asc = st.session_state.search_reverse == "false"
+                        label = T[tkey] + (" ↑" if asc else " ↓") if active else T[tkey]
+                        if col.button(label, use_container_width=True, key=f"sort_{okey}", type="primary" if active else "secondary"):
+                            run_search(0, ("false" if st.session_state.search_reverse == "true" else "true") if active else default_rev, okey)
+                            st.rerun()
+                else:
+                    col_home, col_top, col_low = st.columns([2, 1, 1])
                 
-                with col_home:
-                    st.button(f"🏠 {T['btn_home']}", on_click=reset_home, use_container_width=True, key="btn_home_main")
+                    with col_home:
+                        st.button(f"🏠 {T['btn_home']}", on_click=reset_home, use_container_width=True, key="btn_home_main")
                 
-                with col_top:
-                    label_top = T.get("btn_sort_top", "🔥 Top Votes")
-                    if st.button(label_top, use_container_width=True, key="btn_sort_top"):
-                        run_search(0, "true")
-                        st.rerun()
+                    with col_top:
+                        label_top = T.get("btn_sort_top", "🔥 Top Votes")
+                        if st.button(label_top, use_container_width=True, key="btn_sort_top"):
+                            run_search(0, "true", "votes")
+                            st.rerun()
                 
-                with col_low:
-                    label_low = T.get("btn_sort_low", "🧊 Low Votes")
-                    if st.button(label_low, use_container_width=True, key="btn_sort_low"):
-                        run_search(0, "false")
-                        st.rerun()
+                    with col_low:
+                        label_low = T.get("btn_sort_low", "🧊 Low Votes")
+                        if st.button(label_low, use_container_width=True, key="btn_sort_low"):
+                            run_search(0, "false", "votes")
+                            st.rerun()
 
                 st.write(f"### {T['results']}")
                 
@@ -1281,12 +1304,14 @@ with main_area.container():
                     else:
                         st.button("🏁 " + T["end"], disabled=True, use_container_width=True)
 
-                st.write("")
-                if st.button("🏠 " + T["btn_home"], on_click=reset_home, use_container_width=True):
-                    st.rerun()
+                if UI == "legacy":
+                    st.write("")
+                    if st.button("🏠 " + T["btn_home"], on_click=reset_home, use_container_width=True):
+                        st.rerun()
             else:
                 st.warning(T["no_results"])
-                st.button(T["btn_home"], on_click=reset_home, use_container_width=True)
+                if UI == "legacy":
+                    st.button(T["btn_home"], on_click=reset_home, use_container_width=True)
 
 # Footer
 start_ping = time.time()
