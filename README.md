@@ -1,4 +1,4 @@
-# 📻 NaviradioManager Plus
+# 📻 Navidrome Radio Manager PLUS (NaviradioManager Plus)
 
 Web app to search internet radio stations on [radio-browser.info](https://api.radio-browser.info/) and manage the radio stations of your [Navidrome](https://www.navidrome.org/) server.
 
@@ -20,9 +20,10 @@ Web app to search internet radio stations on [radio-browser.info](https://api.ra
 - **Radio-browser protocol compliance**: server discovery through `/json/servers` with random choice and fallback to the other servers, and a descriptive `User-Agent` on every request.
 - **Now playing** for a selected station: current track and artist, stream info, and a "recently heard" list while the panel is open. It reads the ICY metadata of the stream, so it works only for stations that send it (most Shoutcast/Icecast ones). HLS streams and stations without metadata are reported as "not available".
 - **More station info** in the results: language, place, plays with trend, last working check, tags, HLS / SSL warnings.
+- **Six interface languages** (IT, EN, FR, DE, ES, PT) switchable from the flags at the bottom of the sidebar, without restarting or rebuilding. `APP_LANG` only sets the language shown at first load; the choice is kept in the URL (`?lang=fr`).
 - Updated to current Streamlit (`st.iframe` instead of the removed `st.components.v1.html`).
 
-Everything from the original is kept: add / remove / edit stations, bulk add of a result page, duplicate detection, stream test, voting, Italian and English UI.
+Everything from the original is kept: add / remove / edit stations, bulk add of a result page, duplicate detection, stream test, voting.
 
 ## Quick start
 
@@ -42,7 +43,7 @@ Open <http://localhost:8501>.
 
 | Variable | Meaning |
 |----------|---------|
-| `APP_LANG` | `IT` or `EN` |
+| `APP_LANG` | Starting interface language: `IT`, `EN`, `FR`, `DE`, `ES` or `PT` (default `IT`). Users can change it from the sidebar |
 | `TZ` | Time zone, for example `Europe/Rome` |
 | `NAVIDROME_URL` | Base URL of Navidrome, reachable from the container |
 | `NAVIDROME_USER` / `NAVIDROME_PASS` | Navidrome user and its **plain-text** password (a `$` must be written as `$$`) |

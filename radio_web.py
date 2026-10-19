@@ -6,11 +6,11 @@ import os
 import time
 import random
 import re
-from lang import TRANSLATIONS
+from lang import TRANSLATIONS, LANGUAGES
 from genres import GENRES
 from urllib.parse import unquote
 st.set_page_config(
-    page_title="NaviRadioManager",
+    page_title="Navidrome Radio Manager PLUS",
     page_icon="📻",
     layout="wide",
     initial_sidebar_state="auto"
@@ -39,9 +39,21 @@ PASSWORD = os.getenv("NAVIDROME_PASS", "")
 SALT = os.getenv("NAVIDROME_SALT", "")
 TOKEN = hashlib.md5((PASSWORD + SALT).encode("utf-8")).hexdigest()
 
-LANG_CODE = os.getenv("APP_LANG", "IT").upper()
-T = TRANSLATIONS.get(LANG_CODE, TRANSLATIONS["IT"])
-VERSION = f"7.0.0-{LANG_CODE}"
+# APP_LANG (compose/.env) is only the default language; each browser session can change it from the sidebar.
+DEFAULT_LANG = os.getenv("APP_LANG", "IT").upper()
+if DEFAULT_LANG not in LANGUAGES:
+    DEFAULT_LANG = "IT"
+if 'lang' not in st.session_state:
+    q_lang = str(st.query_params.get("lang", "")).upper()
+    st.session_state.lang = q_lang if q_lang in LANGUAGES else DEFAULT_LANG
+
+def set_lang(code):
+    st.session_state.lang = code
+    st.query_params["lang"] = code
+
+LANG_CODE = st.session_state.lang
+T = TRANSLATIONS[LANG_CODE]
+VERSION = "7.0.0"
 
 FLAGS = {"IT": "🇮🇹", "US": "🇺🇸", "GB": "🇬🇧", "FR": "🇫🇷", "DE": "🇩🇪", "ES": "🇪🇸", "CH": "🇨🇭"}
 
@@ -290,7 +302,7 @@ def get_all_my_radios_with_details():
             return [stations]
         return stations if stations else []
     except Exception as e:
-        st.error(f"Errore recupero radio: {e}")
+        st.error(f'{T["err_fetch"]}: {e}')
         return []
 
 # ========== INIZIALIZZAZIONE STATI SESSIONE ==========
@@ -378,7 +390,7 @@ def get_radios():
             return [stations]
         return stations
     except Exception as e:
-        st.error(f"Errore get_radios: {e}")
+        st.error(f'{T["err_fetch"]}: {e}')
         return []
 
 def delete_radio(radio_id):
@@ -577,7 +589,7 @@ def copy_to_clipboard(text):
     </script>
     """
     st.iframe(js_code, height=1)
-    st.toast("📋 Copiato negli appunti!", icon="📋")
+    st.toast("📋", icon="📋")
 
 def rerun():
     st.write("")
@@ -605,7 +617,7 @@ with st.sidebar:
     st.header(T["search_header"])
     st.divider()
     # Bottone per gestione radio
-    manage_label = T.get("btn_manage_radios", "📻 Navidrome Radio" if LANG_CODE == "IT" else "📻 Navidrome Radios")
+    manage_label = T["btn_manage_radios"]
     if st.button(manage_label, use_container_width=True, type="secondary"):
         st.cache_data.clear()
         st.session_state.my_radios = get_all_my_radios_with_details()
@@ -647,9 +659,9 @@ with st.sidebar:
     
     # Sidebar in modalità gestione
     else:
-        #st.subheader("📻 " + (T.get("my_radios_title", "Le mie Radio") if LANG_CODE == "IT" else "My Radios"))
+        #st.subheader("📻 " + T["my_radios_title"])
         
-        back_label = "🔙 " + (T.get("back_to_search", "Torna alla Ricerca") if LANG_CODE == "IT" else "Back to Search")
+        back_label = "🔙 " + T["back_to_search"]
         if st.button(back_label, use_container_width=True):
             st.session_state.view_mode = "search"
             st.session_state.selected_radio = None
@@ -661,7 +673,7 @@ with st.sidebar:
         st.divider()
         
         if st.session_state.selected_radio:
-            back_list_label = "📋 " + (T.get("back_to_list", "Torna alla Lista") if LANG_CODE == "IT" else "Back to List")
+            back_list_label = "📋 " + T["back_to_list"]
             if st.button(back_list_label, use_container_width=True, type="secondary"):
                 back_to_radio_list()
                 st.rerun()
@@ -694,16 +706,16 @@ with main_area.container():
                 st.caption(f"ID: `{radio.get('id', 'N/D')}`")
             st.divider()
             # ========== SEZIONE URL E LINK ==========
-            st.subheader("🔗 " + (T.get("links", "Info") if LANG_CODE == "IT" else "Info"))
+            st.subheader("🔗 " + T["links"])
             url_cols = st.columns(2)
             with url_cols[0]:
                 if hp:
                     # Recupera favicon
                     favicon_url = f"https://www.google.com/s2/favicons?sz=32&domain={hp}"
-                    st.markdown(f"**<img src='{favicon_url}' width='32' style='vertical-align: middle; margin-right: 5px;'> {T.get('website', 'Sito Web') if LANG_CODE == 'IT' else 'Website'}**", unsafe_allow_html=True)
+                    st.markdown(f"**<img src='{favicon_url}' width='32' style='vertical-align: middle; margin-right: 5px;'> {T["website"]}**", unsafe_allow_html=True)
                     st.code(hp, language=None)
                 else:
-                    st.markdown("**🌐 " + (T.get("website", "Sito Web") if LANG_CODE == "IT" else "Website") + "**")
+                    st.markdown("**🌐 " + T["website"] + "**")
                     st.caption("—")
             with url_cols[1]:
                 st.markdown("**<img src='https://www.google.com/s2/favicons?sz=32&domain=radio-browser.info' width='32' style='vertical-align: middle; margin-right: 5px;'> Stream URL**", unsafe_allow_html=True)
@@ -714,8 +726,8 @@ with main_area.container():
             <div style="display: flex; justify-content: space-around; align-items: center; 
                         background-color: rgba(0,0,0,0.1); padding: 8px; border-radius: 8px;
                         font-size: 14px;">
-                <span>⭐ <b>{radio.get('starred', 0) or 0}</b> {T.get("votes", "Voti") if LANG_CODE == "IT" else "Votes"}</span>
-                <span>🟢 {T.get("active", "Attiva") if LANG_CODE == "IT" else "Active"}</span>
+                <span>⭐ <b>{radio.get('starred', 0) or 0}</b> {T["votes"]}</span>
+                <span>🟢 {T["active"]}</span>
                 <span>📊 Radio</span>
             </div>
             """, unsafe_allow_html=True)
@@ -723,7 +735,7 @@ with main_area.container():
             st.divider()
             
             # ========== SEZIONE PLAYER ==========
-            st.subheader("▶️ " + (T.get("preview", "Anteprima") if LANG_CODE == "IT" else "Preview"))
+            st.subheader("▶️ " + T["preview"])
             
             fixed_url = fix_url(stream_url)
             try:
@@ -733,9 +745,9 @@ with main_area.container():
                     # Aggiungi spazio negativo dopo
                     st.markdown('<div style="margin-top: -10px;"></div>', unsafe_allow_html=True)
                 else:
-                    st.warning(T.get("no_preview", "Anteprima non disponibile") if LANG_CODE == "IT" else "Preview not available")
+                    st.warningT["no_preview"]
             except Exception as e:
-                st.error(f"Errore player: {str(e)}")
+                st.error(f'{T["err_player"]}: {e}')
 
             if fixed_url:
                 now_playing_panel(fixed_url)
@@ -743,44 +755,44 @@ with main_area.container():
             st.divider()
             
             # ========== SEZIONE AZIONI CON EDIT FUNZIONANTE (API CORRETTA) ============
-            st.subheader("⚡ " + (T.get("actions", "Azioni") if LANG_CODE == "IT" else "Actions"))
+            st.subheader("⚡ " + T["actions"])
             
             # Se siamo in modalità edit, mostra il form
             if st.session_state.edit_mode and st.session_state.editing_radio.get('id') == radio.get('id'):
-                st.info("✏️ " + (T.get("edit_mode_info", "Modifica i campi e conferma") if LANG_CODE == "IT" else "Edit fields and confirm"))
+                st.info("✏️ " + T["edit_mode_info"])
                 
                 with st.form(key=f"edit_form_{radio.get('id')}"):
                     edit_name = st.text_input(
-                        T.get("name_label", "Nome") if LANG_CODE == "IT" else "Name",
+                        T["name_label"],
                         value=radio.get('name', '')
                     )
                     edit_url = st.text_input(
-                        T.get("stream_url", "URL Stream") if LANG_CODE == "IT" else "Stream URL",
+                        T["stream_url"],
                         value=radio.get('streamUrl', radio.get('url', ''))
                     )
                     edit_homepage = st.text_input(
-                        T.get("homepage_url", "Sito Web") if LANG_CODE == "IT" else "Homepage",
+                        T["homepage_url"],
                         value=radio.get('homePageUrl', '')
                     )
                     
                     col_save, col_cancel = st.columns(2)
                     with col_save:
                         submitted = st.form_submit_button(
-                            "💾 " + (T.get("save", "Salva") if LANG_CODE == "IT" else "Save"),
+                            "💾 " + T["save"],
                             use_container_width=True,
                             type="primary"
                         )
                     with col_cancel:
                         cancelled = st.form_submit_button(
-                            "❌ " + (T.get("cancel", "Annulla") if LANG_CODE == "IT" else "Cancel"),
+                            "❌ " + T["cancel"],
                             use_container_width=True
                         )
                     
                     if submitted:
                         if not edit_name or not edit_url:
-                            st.error(T.get("err_required_fields", "Nome e URL sono obbligatori") if LANG_CODE == "IT" else "Name and URL are required")
+                            st.errorT["err_required_fields"]
                         else:
-                            with st.spinner(T.get("saving", "Salvataggio...") if LANG_CODE == "IT" else "Saving..."):
+                            with st.spinnerT["saving"]:
                                 res = update_radio(
                                     radio.get('id'),
                                     edit_name,
@@ -789,15 +801,15 @@ with main_area.container():
                                 )
                                 
                                 if res.get('subsonic-response', {}).get('status') == 'ok':
-                                    st.success(T.get("msg_updated", "✅ Radio aggiornata con successo!") if LANG_CODE == "IT" else "✅ Radio updated successfully!")
+                                    st.successT["msg_updated"]
                                     cancel_edit()
                                     time.sleep(1)
                                     st.cache_data.clear()
                                     st.session_state.my_radios = get_all_my_radios_with_details()
                                     st.rerun()
                                 else:
-                                    err_msg = res.get('subsonic-response', {}).get('error', {}).get('message', 'Errore sconosciuto')
-                                    st.error(f"❌ Errore: {err_msg}")
+                                    err_msg = res.get('subsonic-response', {}).get('error', {}).get('message', T['err_unknown'])
+                                    st.error(f"❌ {T['err_generic']}: {err_msg}")
                     
                     if cancelled:
                         cancel_edit()
@@ -818,19 +830,19 @@ with main_area.container():
                 
                 # Prima riga
                 with row1_col1:
-                    if st.button("🧪 " + (T.get("test_stream", "Test Stream") if LANG_CODE == "IT" else "Test Stream"), 
+                    if st.button("🧪 " + T["test_stream"], 
                                use_container_width=True):
                         try:
                             test_resp = requests.get(fixed_url, timeout=5, stream=True)
                             if test_resp.status_code == 200:
-                                st.success("✅ Stream raggiungibile!")
+                                st.success(T["stream_ok"])
                             else:
-                                st.warning(f"⚠️ Status: {test_resp.status_code}")
+                                st.warning(f'{T["stream_status"]}: {test_resp.status_code}')
                         except Exception as e:
-                            st.error(f"❌ Errore: {str(e)}")
+                            st.error(f"❌ {T['err_generic']}: {e}")
                 
                 with row1_col2:
-                    if st.button("✏️ " + (T.get("edit", "Modifica") if LANG_CODE == "IT" else "Edit"), 
+                    if st.button("✏️ " + T["edit"], 
                                use_container_width=True, 
                                type="secondary"):
                         enter_edit_mode(radio)
@@ -838,7 +850,7 @@ with main_area.container():
                 
                 # Seconda riga
                 with row2_col1:
-                    if st.button("📋 " + (T.get("back_to_list", "Torna alla Lista") if LANG_CODE == "IT" else "Back to List"), 
+                    if st.button("📋 " + T["back_to_list"], 
                                use_container_width=True, 
                                type="secondary"):
                         back_to_radio_list()
@@ -846,18 +858,18 @@ with main_area.container():
                 
                 with row2_col2:
                     # ELIMINA
-                    del_label = "🗑️ " + (T.get("delete", "Elimina") if LANG_CODE == "IT" else "Delete")
+                    del_label = "🗑️ " + T["delete"]
                     
                     if not st.session_state[confirm_key]:
                         if st.button(del_label, use_container_width=True, type="secondary", key=f"del_btn_{radio.get('id')}"):
                             st.session_state[confirm_key] = True
                             st.rerun()
                     else:
-                        st.warning("⚠️ " + (T.get("click_again_confirm", "Clicca di nuovo per confermare") if LANG_CODE == "IT" else "Click again to confirm"))
+                        st.warning("⚠️ " + T["click_again_confirm"])
                         
                         col_confirm, col_cancel = st.columns(2)
                         with col_confirm:
-                            if st.button("✅ " + (T.get("confirm", "Conferma") if LANG_CODE == "IT" else "Confirm"), 
+                            if st.button("✅ " + T["confirm"], 
                                        use_container_width=True, 
                                        type="primary",
                                        key=f"del_confirm_{radio.get('id')}"):
@@ -872,19 +884,19 @@ with main_area.container():
                                 st.session_state[confirm_key] = False
                                 
                                 if res.get('subsonic-response', {}).get('status') == 'ok':
-                                    st.success("🗑️ " + (T.get("msg_deleted", "Eliminata!") if LANG_CODE == "IT" else "Deleted!"))
+                                    st.success("🗑️ " + T["msg_deleted"])
                                     st.cache_data.clear()
                                     st.session_state.my_radios = get_all_my_radios_with_details()
                                     time.sleep(1)
                                     back_to_radio_list()
                                     st.rerun()
                                 else:
-                                    st.error(f"❌ Status non è 'ok': {res.get('subsonic-response', {}).get('status')}")
-                                    err = res.get('subsonic-response', {}).get('error', {}).get('message', 'Errore sconosciuto')
+                                    st.error(f"❌ {T['err_status']}: {res.get('subsonic-response', {}).get('status')}")
+                                    err = res.get('subsonic-response', {}).get('error', {}).get('message', T['err_unknown'])
                                     st.error(f"❌ {err}")
                         
                         with col_cancel:
-                            if st.button("❌ " + (T.get("cancel", "Annulla") if LANG_CODE == "IT" else "Cancel"),
+                            if st.button("❌ " + T["cancel"],
                                        use_container_width=True,
                                        key=f"del_cancel_{radio.get('id')}"):
                                 st.session_state[confirm_key] = False
@@ -898,9 +910,9 @@ with main_area.container():
         
         # --- Vista Lista di tutte le radio ---
         else:
-            st.header(T.get("my_radios_title", "Le mie Radio" if LANG_CODE == "IT" else "My Radios"))
+            st.header(T["my_radios_title"])
             
-            if st.button("🔄 " + (T.get("refresh", "Aggiorna Lista") if LANG_CODE == "IT" else "Refresh List"), 
+            if st.button("🔄 " + T["refresh"], 
                        use_container_width=True):
                 st.cache_data.clear()
                 switch_to_manage_mode()
@@ -909,11 +921,10 @@ with main_area.container():
             st.divider()
             
             if not st.session_state.my_radios:
-                st.warning(T.get("no_radios_found", "Nessuna radio trovata in Navidrome" if LANG_CODE == "IT" 
-                               else "No radios found in Navidrome"))
+                st.warning(T["no_radios_found"])
             else:
                 st.success(f"📻 {len(st.session_state.my_radios)} " + 
-                          (T.get("radios_count", "radio trovate") if LANG_CODE == "IT" else "radios found"))
+                          T["radios_count"])
                 
                 cols_per_row = 3
                 radios = st.session_state.my_radios
@@ -935,7 +946,7 @@ with main_area.container():
                                     
                                     st.markdown(f"**{radio.get('name', 'Unknown')[:25]}**")
                                     
-                                    det_label = T.get("btn_details", "🔍 Dettagli") if LANG_CODE == "IT" else "🔍 Details"
+                                    det_label = T["btn_details"]
                                     if st.button(det_label, key=f"det_{radio.get('id')}", use_container_width=True):
                                         select_radio_for_details(radio)
                                         st.rerun()
@@ -1009,18 +1020,18 @@ with main_area.container():
                     votes = s.get('votes', 0)
 
                     if votes > 5000:
-                        top_icon = "👑 " + "[Votes: " + str(votes) + "]"
+                        top_icon = "👑 " + f"[{T['votes_tag']}: {votes}]"
                     elif votes > 1000:
-                        top_icon = "🔥 " + "[Votes: " + str(votes) + "]"
+                        top_icon = "🔥 " + f"[{T['votes_tag']}: {votes}]"
                     else:
-                        top_icon = "[Votes: " + str(votes) + "]"
+                        top_icon = f"[{T['votes_tag']}: {votes}]"
                     
                     is_dup_tag = " ✅" if is_duplicate else ""
                     hp = s.get('homepage', '').strip()
                     icona = f"https://www.google.com/s2/favicons?sz=64&domain={hp}" if hp else None
                     tags = s.get('tags', '')
                     genere_list = [t.strip().capitalize() for t in tags.split(',') if t.strip()]
-                    genere_principale = genere_list[0] if genere_list else ("Radio" if LANG_CODE=="IT" else "Station")
+                    genere_principale = genere_list[0] if genere_list else T["station_word"]
                     is_dup_tag = " ✅" if is_duplicate else ""
                     titolo_elenco = f"{flag} - {s['name']} {top_icon} [{genere_principale}]{is_dup_tag}"
                     
@@ -1034,7 +1045,7 @@ with main_area.container():
                         with h_col2:
                             st.markdown(f"""
                             <div style="display: flex; align-items: center;">
-                                <span style="font-weight: bold; margin-right: 10px;">🎧 Quick Preview:</span>
+                                <span style="font-weight: bold; margin-right: 10px;">🎧 {T["quick_preview"]}:</span>
                                 <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">LIVE</span>
                                 <div class="eq-container">
                                     <div class="eq-bar"></div>
@@ -1047,19 +1058,19 @@ with main_area.container():
                                 if stream_url:
                                     st.audio(stream_url, format="audio/mp3")
                                 else:
-                                    st.warning("URL not available")
+                                    st.warning(T["url_unavailable"])
                             except Exception as e:
-                                st.error(f"Unable to load audio: {stream_url}")
+                                st.error(f'{T["audio_load_fail"]}: {stream_url}')
                         
                         d_col1, d_col2 = st.columns(2)
                         bitrate = s.get('bitrate', 0)
                         codec = s.get('codec', 'N/D')
                         if bitrate >= 192:
-                            q_color, q_label = "green", ("High Quality" if LANG_CODE == "EN" else "Alta Qualità")
+                            q_color, q_label = "green", T["q_high"]
                         elif bitrate >= 128:
-                            q_color, q_label = "blue", ("Standard Quality" if LANG_CODE == "EN" else "Qualità Standard")
+                            q_color, q_label = "blue", T["q_std"]
                         else:
-                            q_color, q_label = "orange", ("Low Quality" if LANG_CODE == "EN" else "Bassa Qualità")
+                            q_color, q_label = "orange", T["q_low"]
                         
                         with d_col1:
                             st.markdown(f"**{codec}** @ {bitrate} kbps")
@@ -1083,22 +1094,22 @@ with main_area.container():
 
                         f_col1, f_col2 = st.columns(2)
                         with f_col1:
-                            st.caption(f"⭐ {votes} votes")
+                            st.caption(f'⭐ {votes} {T["votes_caption"]}')
                         with f_col2:
                             if hp:
-                                st.caption(f"🔗 [Web Site]({hp})")
+                                st.caption(f'🔗 [{T["website_link"]}]({hp})')
                         
                         st.divider()
                         
                         col_v, col_a = st.columns([1, 1])
                         with col_v:
-                            v_label = "👍 " + ("Vota Radio" if LANG_CODE == "IT" else "Vote Radio")
+                            v_label = "👍 " + T["vote_btn"]
                             if st.button(v_label, key=f"vote_{s['stationuuid']}", use_container_width=True):
                                 if vote_for_station(s['stationuuid']):
-                                    msg = "Voto inviato! Grazie! 🎉" if LANG_CODE == "IT" else "Vote sent! Thanks! 🎉"
+                                    msg = T["vote_success"]
                                     st.toast(msg)
                                 else:
-                                    err = "Errore nel voto" if LANG_CODE == "IT" else "Voting error"
+                                    err = T["err_vote"]
                                     st.error(err)
 
                         with col_a:
@@ -1115,9 +1126,9 @@ with main_area.container():
                                             st.rerun()
                                         else:
                                             error_msg = res.get('subsonic-response', {}).get('error', {}).get('message', 'Unknown error')
-                                            st.error(f"Navidrome Error: {error_msg}")
+                                            st.error(f'{T["navidrome_error"]}: {error_msg}')
                                     else:
-                                        st.error("Errore: ID radio non trovato nel database!")
+                                        st.error(T["err_radio_id"])
                             else:
                                 if st.button(T["add_btn"], key=f"add_{s['stationuuid']}", use_container_width=True, type="primary"):
                                     res = add_to_navidrome(s)
@@ -1129,7 +1140,7 @@ with main_area.container():
                                         st.error(T.get("err_add", "❌ Error adding station"))
                         
                         if is_duplicate:
-                            msg = "⚠️ Già presente in NAVIDROME" if LANG_CODE=="IT" else "⚠️ Already exists in NAVIDROME"
+                            msg = T["already_in"]
                             st.markdown(
                                 f"""
                                 <div style="text-align: center; color: gray; font-size: 0.8rem; margin-top: -10px; margin-bottom: 10px;">
@@ -1144,21 +1155,21 @@ with main_area.container():
 
                 with col_back:
                     if st.session_state.offset > 0:
-                        if st.button("⬅️ " + ("Indietro" if LANG_CODE=="IT" else "Back"), use_container_width=True, key="nav_back"):
+                        if st.button("⬅️ " + T["back"], use_container_width=True, key="nav_back"):
                             run_search(st.session_state.offset - PAGE_SIZE, st.session_state.search_reverse)
                             st.rerun()
 
                 with col_info:
                     pagina_attuale = (st.session_state.offset // PAGE_SIZE) + 1
-                    st.markdown(f"<div style='text-align: center; padding-top: 10px; font-weight: bold; color: var(--accent);'>Pag. {pagina_attuale}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='text-align: center; padding-top: 10px; font-weight: bold; color: var(--accent);'>{T["page"]} {pagina_attuale}</div>", unsafe_allow_html=True)
 
                 with col_next:
                     if len(st.session_state.results) >= PAGE_SIZE:
-                        if st.button(("Avanti" if LANG_CODE=="IT" else "Next") + " ➡️", use_container_width=True, key="nav_next"):
+                        if st.button(T["next"] + " ➡️", use_container_width=True, key="nav_next"):
                             run_search(st.session_state.offset + PAGE_SIZE, st.session_state.search_reverse)
                             st.rerun()
                     else:
-                        st.button("🏁 " + ("Fine" if LANG_CODE=="IT" else "End"), disabled=True, use_container_width=True)
+                        st.button("🏁 " + T["end"], disabled=True, use_container_width=True)
 
                 st.write("")
                 if st.button("🏠 " + T["btn_home"], on_click=reset_home, use_container_width=True):
@@ -1176,12 +1187,12 @@ with col1:
     try:
         requests.get(NAVIDROME_URL, timeout=2)
         ping = int((time.time() - start_ping) * 1000)
-        st.markdown(f":gray-badge[:material/check: Navidrome URL: {NAVIDROME_URL} 🟢 Connected ({ping}ms)]")
+        st.markdown(f":gray-badge[:material/check: Navidrome URL: {NAVIDROME_URL} 🟢 {T["connected"]} ({ping}ms)]")
     except:
-        st.markdown(f":gray-badge[:material/check: Navidrome URL: {NAVIDROME_URL} 🔴 Offline]")
+        st.markdown(f":gray-badge[:material/check: Navidrome URL: {NAVIDROME_URL} 🔴 {T["offline"]}]")
 
 with col2:
-    st.markdown(f":gray-badge[:material/check: User: {USERNAME} ]")
+    st.markdown(f":gray-badge[:material/check: {T["user_label"]}: {USERNAME} ]")
 
 time.sleep(.1)
 
@@ -1202,6 +1213,10 @@ with st.sidebar:
 with st.sidebar:
     st.markdown(footer_html, unsafe_allow_html=True)
     time.sleep(.1)
+    st.caption(f"🌐 {T['lang_label']}")
+    for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES)), LANGUAGES.items()):
+        col.button(flag, key=f"lang_{code}", help=name, on_click=set_lang, args=(code,),
+                   type="primary" if code == LANG_CODE else "secondary", use_container_width=True)
 
 st.divider()
 st.caption("© 2026 NaviRadioManager Plus — fork of [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager) (MIT)")

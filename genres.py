@@ -17,7 +17,7 @@ k-pop, karaoke, kids, krautrock, latin, latin jazz, latin pop, lo-fi, lofi hip h
 mariachi, math rock, melodic death metal, merengue, metal, metalcore, minimal, mizrahi, motown, musical,
 neo soul, new age, new romantic, new wave, noise, nu disco, nu jazz, nu metal, oldies, opera,
 orchestral, pagode, polka, pop, pop rock, post-punk, post-rock, power metal, power pop, progressive,
-progressive house, progressive rock, psychedelic, psytrance, pub rock, punk, punk rock, r&b, ragga, rai,
+progressive house, progressive metal, progressive rock, psychedelic, psytrance, pub rock, punk, punk rock, r&b, ragga, rai,
 rap, reggae, reggaeton, retro, rhythm and blues, rock, rock and roll, rockabilly, romantic, salsa,
 samba, schlager, sertanejo, shoegaze, ska, slow rock, smooth jazz, soft rock, soul, soundtrack,
 southern rock, space rock, speed metal, stoner rock, surf rock, swing, symphonic metal, synthpop,

@@ -7,4 +7,8 @@ services:
     ports:
       - "8501:8501"
     env_file: .env
+    environment:
+      # Language shown at first load: IT, EN, FR, DE, ES or PT (default IT).
+      # Users can change it at any time from the flags in the sidebar, no restart needed.
+      APP_LANG: ${APP_LANG:-IT}
     restart: unless-stopped

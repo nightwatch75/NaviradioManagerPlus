@@ -261,3 +261,6 @@ html:has(.theme-dark) audio { filter: invert(100%) hue-rotate(180deg) brightness
   .main .block-container { padding: 1rem; }
   .stButton button { width: 100%; }
 }
+
+/* language switcher: six flag buttons side by side in the narrow sidebar */
+[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] button { padding: 0 !important; min-width: 0; font-size: 1.2rem; }
