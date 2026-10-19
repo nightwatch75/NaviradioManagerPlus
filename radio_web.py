@@ -553,8 +553,13 @@ def get_total_radios():
     except Exception as e:
         return "?"
 
+def selected_results():
+    """Stations of the current page whose checkbox (key sel_<uuid>) is ticked."""
+    return [r for r in st.session_state.results if st.session_state.get(f"sel_{r['stationuuid']}")]
+
 def bulk_add_radios():
-    if not st.session_state.results:
+    selected = selected_results()
+    if not selected:
         st.toast(T.get("bulk_no_results", "⚠️ Nessuna radio da aggiungere!"), icon="⚠️")
         return
 
@@ -566,7 +571,8 @@ def bulk_add_radios():
         
         existing_urls = get_existing_radios() 
         
-        for radio in st.session_state.results:
+        for radio in selected:
+            st.session_state[f"sel_{radio['stationuuid']}"] = False  # untick: this runs before the checkboxes are drawn
             name = radio.get('name', 'Unknown')
             url = radio.get('url_resolved', radio.get('url', ''))
             
@@ -683,7 +689,7 @@ def topbar():
         with c_logo:
             st.markdown(f"<div class='tb-title'>{T['title']} <small>v{APP_VERSION}</small></div>", unsafe_allow_html=True)
         with c_right:
-            r = st.columns([0.8, 2.8, .55, 2.0, 1.1], vertical_alignment="center")
+            r = st.columns([0.7, 2.5, .55, 2.0, 1.5], vertical_alignment="center")
             r[0].markdown("<a class='tb-gh' href='https://github.com/nightwatch75/NaviradioManagerPlus' target='_blank' title='GitHub'>GitHub</a>", unsafe_allow_html=True)
             # palette picker: each entry shows its four color discs (injected as CSS backgrounds by swatch_css)
             with r[1].popover(PALETTES[PALETTE]["name"], key="palpop", use_container_width=True):
@@ -1089,8 +1095,9 @@ with main_area.container():
         elif st.session_state.stage == 1:
             existing_urls = get_existing_radios()  
             if st.session_state.results:
-                btn_label = T.get("btn_bulk_add", "➕ Add entire page to Navidrome")
-                if st.button(btn_label, use_container_width=True, type="primary"):
+                n_sel = len(selected_results())
+                btn_label = T["btn_bulk_add"].format(n=n_sel)
+                if st.button(btn_label, use_container_width=True, type="primary", disabled=n_sel == 0):
                     bulk_add_radios()
                     
                 if UI == "new":
@@ -1172,120 +1179,124 @@ with main_area.container():
                     is_dup_tag = " ✅" if is_duplicate else ""
                     titolo_elenco = f"{flag} - {s['name']} {top_icon} [{genere_principale}]{is_dup_tag}"
                     
-                    with st.expander(titolo_elenco):
-                        h_col1, h_col2 = st.columns([1, 6])
-                        with h_col1:
-                            if icona:
-                                st.image(icona, width=55)
-                            else:
-                                st.write(f"### {flag}")
-                        with h_col2:
-                            st.markdown(f"""
-                            <div style="display: flex; align-items: center;">
-                                <span style="font-weight: bold; margin-right: 10px;">🎧 {T["quick_preview"]}:</span>
-                                <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">LIVE</span>
-                                <div class="eq-container">
-                                    <div class="eq-bar"></div>
-                                    <div class="eq-bar"></div>
-                                    <div class="eq-bar"></div>
+                    chk_col, exp_col = st.columns([0.06, 0.94], vertical_alignment="top")
+                    # stations already in Navidrome cannot be ticked again
+                    chk_col.checkbox(T["add_btn"], key=f"sel_{s['stationuuid']}", label_visibility="collapsed", disabled=is_duplicate)
+                    with exp_col:
+                        with st.expander(titolo_elenco):
+                            h_col1, h_col2 = st.columns([1, 6])
+                            with h_col1:
+                                if icona:
+                                    st.image(icona, width=55)
+                                else:
+                                    st.write(f"### {flag}")
+                            with h_col2:
+                                st.markdown(f"""
+                                <div style="display: flex; align-items: center;">
+                                    <span style="font-weight: bold; margin-right: 10px;">🎧 {T["quick_preview"]}:</span>
+                                    <span style="color: var(--accent); font-size: 0.8rem; font-weight: bold;">LIVE</span>
+                                    <div class="eq-container">
+                                        <div class="eq-bar"></div>
+                                        <div class="eq-bar"></div>
+                                        <div class="eq-bar"></div>
+                                    </div>
                                 </div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            try:
-                                if stream_url:
-                                    st.audio(stream_url, format="audio/mp3")
-                                else:
-                                    st.warning(T["url_unavailable"])
-                            except Exception as e:
-                                st.error(f'{T["audio_load_fail"]}: {stream_url}')
-                        
-                        d_col1, d_col2 = st.columns(2)
-                        bitrate = s.get('bitrate', 0)
-                        codec = s.get('codec', 'N/D')
-                        if bitrate >= 192:
-                            q_color, q_label = "green", T["q_high"]
-                        elif bitrate >= 128:
-                            q_color, q_label = "blue", T["q_std"]
-                        else:
-                            q_color, q_label = "orange", T["q_low"]
-                        
-                        with d_col1:
-                            st.markdown(f"**{codec}** @ {bitrate} kbps")
-                        with d_col2:
-                            st.markdown(f":{q_color}[{q_label}]")
-                        
-                        st.progress(min(bitrate / 320, 1.0))
-
-                        station_info(s)
-
-                        # One live panel at a time: polling every open card would hit every stream
-                        if stream_url:
-                            if st.session_state.get("np_url") == stream_url:
-                                if st.button("✖ " + T["np_close"], key=f"np_close_{s['stationuuid']}", use_container_width=True):
-                                    st.session_state.np_url = None
-                                    st.rerun()
-                                now_playing_panel(stream_url)
-                            elif st.button("🎵 " + T["np_btn"], key=f"np_{s['stationuuid']}", use_container_width=True):
-                                st.session_state.np_url = stream_url
-                                st.rerun()
-
-                        f_col1, f_col2 = st.columns(2)
-                        with f_col1:
-                            st.caption(f'⭐ {votes} {T["votes_caption"]}')
-                        with f_col2:
-                            if hp:
-                                st.caption(f'🔗 [{T["website_link"]}]({hp})')
-                        
-                        st.divider()
-                        
-                        col_v, col_a = st.columns([1, 1])
-                        with col_v:
-                            v_label = "👍 " + T["vote_btn"]
-                            if st.button(v_label, key=f"vote_{s['stationuuid']}", use_container_width=True):
-                                if vote_for_station(s['stationuuid']):
-                                    msg = T["vote_success"]
-                                    st.toast(msg)
-                                else:
-                                    err = T["err_vote"]
-                                    st.error(err)
-
-                        with col_a:
-                            if is_duplicate:
-                                btn_del_label = T.get("btn_delete", "🗑️ Remove")
-                                if st.button(btn_del_label, key=f"del_{s['stationuuid']}", use_container_width=True):
-                                    if navidrome_id:
-                                        res = delete_radio(navidrome_id)
-                                        status = res.get('subsonic-response', {}).get('status')
-                                        
-                                        if status == 'ok':
-                                            st.toast(T.get("msg_deleted", "Radio eliminata"), icon="🗑️")
-                                            time.sleep(1)
-                                            st.rerun()
-                                        else:
-                                            error_msg = res.get('subsonic-response', {}).get('error', {}).get('message', 'Unknown error')
-                                            st.error(f'{T["navidrome_error"]}: {error_msg}')
+                                """, unsafe_allow_html=True)
+                                try:
+                                    if stream_url:
+                                        st.audio(stream_url, format="audio/mp3")
                                     else:
-                                        st.error(T["err_radio_id"])
-                            else:
-                                if st.button(T["add_btn"], key=f"add_{s['stationuuid']}", use_container_width=True, type="primary"):
-                                    res = add_to_navidrome(s)
-                                    if res.get('subsonic-response', {}).get('status') == 'ok': 
-                                        st.success(T["success"])
-                                        time.sleep(1)
-                                        st.rerun() 
-                                    else: 
-                                        st.error(T.get("err_add", "❌ Error adding station"))
+                                        st.warning(T["url_unavailable"])
+                                except Exception as e:
+                                    st.error(f'{T["audio_load_fail"]}: {stream_url}')
                         
-                        if is_duplicate:
-                            msg = T["already_in"]
-                            st.markdown(
-                                f"""
-                                <div style="text-align: center; color: gray; font-size: 0.8rem; margin-top: -10px; margin-bottom: 10px;">
-                                    {msg}
-                                </div>
-                                """, 
-                                unsafe_allow_html=True
-                            )
+                            d_col1, d_col2 = st.columns(2)
+                            bitrate = s.get('bitrate', 0)
+                            codec = s.get('codec', 'N/D')
+                            if bitrate >= 192:
+                                q_color, q_label = "green", T["q_high"]
+                            elif bitrate >= 128:
+                                q_color, q_label = "blue", T["q_std"]
+                            else:
+                                q_color, q_label = "orange", T["q_low"]
+                        
+                            with d_col1:
+                                st.markdown(f"**{codec}** @ {bitrate} kbps")
+                            with d_col2:
+                                st.markdown(f":{q_color}[{q_label}]")
+                        
+                            st.progress(min(bitrate / 320, 1.0))
+
+                            station_info(s)
+
+                            # One live panel at a time: polling every open card would hit every stream
+                            if stream_url:
+                                if st.session_state.get("np_url") == stream_url:
+                                    if st.button("✖ " + T["np_close"], key=f"np_close_{s['stationuuid']}", use_container_width=True):
+                                        st.session_state.np_url = None
+                                        st.rerun()
+                                    now_playing_panel(stream_url)
+                                elif st.button("🎵 " + T["np_btn"], key=f"np_{s['stationuuid']}", use_container_width=True):
+                                    st.session_state.np_url = stream_url
+                                    st.rerun()
+
+                            f_col1, f_col2 = st.columns(2)
+                            with f_col1:
+                                st.caption(f'⭐ {votes} {T["votes_caption"]}')
+                            with f_col2:
+                                if hp:
+                                    st.caption(f'🔗 [{T["website_link"]}]({hp})')
+                        
+                            st.divider()
+                        
+                            col_v, col_a = st.columns([1, 1])
+                            with col_v:
+                                v_label = "👍 " + T["vote_btn"]
+                                if st.button(v_label, key=f"vote_{s['stationuuid']}", use_container_width=True):
+                                    if vote_for_station(s['stationuuid']):
+                                        msg = T["vote_success"]
+                                        st.toast(msg)
+                                    else:
+                                        err = T["err_vote"]
+                                        st.error(err)
+
+                            with col_a:
+                                if is_duplicate:
+                                    btn_del_label = T.get("btn_delete", "🗑️ Remove")
+                                    if st.button(btn_del_label, key=f"del_{s['stationuuid']}", use_container_width=True):
+                                        if navidrome_id:
+                                            res = delete_radio(navidrome_id)
+                                            status = res.get('subsonic-response', {}).get('status')
+                                        
+                                            if status == 'ok':
+                                                st.toast(T.get("msg_deleted", "Radio eliminata"), icon="🗑️")
+                                                time.sleep(1)
+                                                st.rerun()
+                                            else:
+                                                error_msg = res.get('subsonic-response', {}).get('error', {}).get('message', 'Unknown error')
+                                                st.error(f'{T["navidrome_error"]}: {error_msg}')
+                                        else:
+                                            st.error(T["err_radio_id"])
+                                else:
+                                    if st.button(T["add_btn"], key=f"add_{s['stationuuid']}", use_container_width=True, type="primary"):
+                                        res = add_to_navidrome(s)
+                                        if res.get('subsonic-response', {}).get('status') == 'ok': 
+                                            st.success(T["success"])
+                                            time.sleep(1)
+                                            st.rerun() 
+                                        else: 
+                                            st.error(T.get("err_add", "❌ Error adding station"))
+                        
+                            if is_duplicate:
+                                msg = T["already_in"]
+                                st.markdown(
+                                    f"""
+                                    <div style="text-align: center; color: gray; font-size: 0.8rem; margin-top: -10px; margin-bottom: 10px;">
+                                        {msg}
+                                    </div>
+                                    """, 
+                                    unsafe_allow_html=True
+                                )
                 
                 st.divider()
                 col_back, col_info, col_next = st.columns([1, 1, 1])
