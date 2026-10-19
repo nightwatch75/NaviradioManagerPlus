@@ -106,3 +106,20 @@ audio { width: 100%; border-radius: 999px; }
 .tb-gh { display: block; text-align: right; }
 .st-key-topbar [data-testid="stHorizontalBlock"]:has([class*="st-key-lang_"]):not(:has([data-testid="stHorizontalBlock"])) { flex-wrap: nowrap !important; gap: .25rem !important; }
 .st-key-topbar [data-testid="stHorizontalBlock"]:has([class*="st-key-lang_"]):not(:has([data-testid="stHorizontalBlock"])) > [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; width: auto !important; }
+
+/* palette picker: capsule with four flat color discs on the left of each entry */
+.st-key-palpop button, [class*="st-key-pal_"] button {
+  background-repeat: no-repeat !important; background-position: .6rem center !important; background-size: auto 1.35rem !important;
+  padding-left: 6.2rem !important; justify-content: flex-start; text-align: left;
+}
+[class*="st-key-pal_"] button { border-color: transparent !important; background-color: transparent !important; border-radius: 10px; }
+[class*="st-key-pal_"] button:hover { background-color: color-mix(in srgb, var(--accent) 16%, transparent) !important; }
+[class*="st-key-pal_"] button[kind="primary"] { background-color: var(--accent) !important; color: var(--accent-contrast) !important; }
+[data-testid="stPopoverBody"]:has([class*="st-key-pal_"]) { max-height: 62vh; overflow-y: auto; min-width: 17rem; padding: .4rem; }
+[class*="st-key-pal_"] button > div, [class*="st-key-pal_"] button p { width: 100%; justify-content: flex-start !important; text-align: left !important; }
+.st-key-palpop button > div { justify-content: flex-start; }
+[data-testid="stPopoverBody"]:has([class*="st-key-pal_"]) [data-testid="stVerticalBlock"] { gap: .15rem !important; }
+[class*="st-key-pal_"] button { min-height: 2.3rem; }
+[data-testid="stPopoverBody"] { background: var(--bg-elev) !important; border: 1px solid var(--border) !important; border-radius: 14px !important; box-shadow: var(--shadow) !important; }
+[class*="st-key-pal_"] button[kind] { color: var(--text) !important; background-repeat: no-repeat !important; background-position: .6rem center !important; background-size: auto 1.35rem !important; }
+[class*="st-key-pal_"] button[kind="primary"] { color: var(--accent-contrast) !important; }

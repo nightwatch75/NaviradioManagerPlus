@@ -11,7 +11,7 @@ import base64
 from pathlib import Path
 from lang import TRANSLATIONS, LANGUAGES
 from genres import GENRES
-from palettes import PALETTES, palette_css
+from palettes import PALETTES, palette_css, swatch_css, has_light
 from urllib.parse import unquote
 st.set_page_config(
     page_title="Navidrome Radio Manager PLUS",
@@ -40,16 +40,17 @@ def set_ui(code):
 
 UI = st.session_state.ui
 
-# Color palette of the new UI (?palette=); every palette except "default" is dark-only
+# Color palette of the new UI (?palette=); some palettes are dark-only (has_light)
 if 'palette' not in st.session_state:
     q_pal = st.query_params.get("palette")
     st.session_state.palette = q_pal if q_pal in PALETTES else "default"
 
-def set_palette():
-    st.query_params["palette"] = st.session_state.palette
+def set_palette(key):
+    st.session_state.palette = key
+    st.query_params["palette"] = key
 
 PALETTE = st.session_state.palette if UI == "new" else "default"
-EFF_THEME = st.session_state.theme if PALETTE == "default" else "dark"
+EFF_THEME = st.session_state.theme if has_light(PALETTE) else "dark"
 
 def local_css(file_name):
     with open(file_name) as f:
@@ -58,7 +59,7 @@ def local_css(file_name):
 local_css("style.css")
 if UI == "new":
     local_css("style_new.css")
-    st.markdown(palette_css(PALETTE), unsafe_allow_html=True)
+    st.markdown(palette_css(PALETTE, EFF_THEME) + swatch_css(PALETTE, EFF_THEME), unsafe_allow_html=True)
 st.markdown(f"<style>:root {{ color-scheme: {EFF_THEME}; }}</style>"
             f"<div class='theme-marker theme-{EFF_THEME}'></div>",
             unsafe_allow_html=True)
@@ -682,11 +683,14 @@ def topbar():
         with c_logo:
             st.markdown(f"<div class='tb-title'>{T['title']} <small>v{APP_VERSION}</small></div>", unsafe_allow_html=True)
         with c_right:
-            r = st.columns([1.0, 2.2, .55, 2.0, 1.1], vertical_alignment="center")
+            r = st.columns([0.8, 2.8, .55, 2.0, 1.1], vertical_alignment="center")
             r[0].markdown("<a class='tb-gh' href='https://github.com/nightwatch75/NaviradioManagerPlus' target='_blank' title='GitHub'>GitHub</a>", unsafe_allow_html=True)
-            r[1].selectbox("Theme", list(PALETTES), key="palette", on_change=set_palette, label_visibility="collapsed",
-                           format_func=lambda k: f"{PALETTES[k][2]} {PALETTES[k][0]}")
-            r[2].button("☀️" if st.session_state.theme == "dark" else "🌙", on_click=toggle_theme, disabled=PALETTE != "default",
+            # palette picker: each entry shows its four color discs (injected as CSS backgrounds by swatch_css)
+            with r[1].popover(PALETTES[PALETTE]["name"], key="palpop", use_container_width=True):
+                for k, p in PALETTES.items():
+                    st.button(p["name"], key=f"pal_{k}", on_click=set_palette, args=(k,), use_container_width=True,
+                              type="primary" if k == PALETTE else "secondary")
+            r[2].button("☀️" if st.session_state.theme == "dark" else "🌙", on_click=toggle_theme, disabled=not has_light(PALETTE),
                         use_container_width=True, key="btn_theme", help=T["theme_light"] if st.session_state.theme == "dark" else T["theme_dark"])
             with r[3]:
                 for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES), gap="xxsmall"), LANGUAGES.items()):
