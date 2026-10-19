@@ -4,9 +4,23 @@ Web app to search internet radio stations on [radio-browser.info](https://api.ra
 
 > **This is a fork of [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager)** by **Bruno Piras**, released under the MIT license. All credit for the original idea, the Navidrome integration and the base application goes to the original author. This fork adds a new interface, advanced search filters and live station info (see below). Not affiliated with, or endorsed by, the original author.
 
+### New UI (default)
+
 | Dark | Light |
 |------|-------|
-| ![Dark theme](docs/screenshot-dark.png) | ![Light theme](docs/screenshot-light.png) |
+| ![New UI, dark](docs/screenshot-new-dark.png) | ![New UI, light](docs/screenshot-new-light.png) |
+
+Color palettes (dark): Tokyo Night, Kanagawa and 14 more.
+
+| Tokyo Night | Kanagawa |
+|-------------|----------|
+| ![New UI, Tokyo Night](docs/screenshot-new-tokyonight.png) | ![New UI, Kanagawa](docs/screenshot-new-kanagawa.png) |
+
+### Legacy UI
+
+| Dark | Light |
+|------|-------|
+| ![Legacy UI, dark](docs/screenshot-legacy-dark.png) | ![Legacy UI, light](docs/screenshot-legacy-light.png) |
 
 ## What this fork adds
 
