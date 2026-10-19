@@ -6,6 +6,8 @@ import os
 import time
 import random
 import re
+import base64
+from pathlib import Path
 from lang import TRANSLATIONS, LANGUAGES
 from genres import GENRES
 from urllib.parse import unquote
@@ -46,6 +48,21 @@ if DEFAULT_LANG not in LANGUAGES:
 if 'lang' not in st.session_state:
     q_lang = str(st.query_params.get("lang", "")).upper()
     st.session_state.lang = q_lang if q_lang in LANGUAGES else DEFAULT_LANG
+
+# Flag emojis are not drawn on every OS (Windows shows letters), so the switcher uses bundled SVGs
+# injected as data URIs on the buttons (Streamlit buttons cannot hold an <img>).
+FLAG_FILES = {"IT": "it", "EN": "gb", "FR": "fr", "DE": "de", "ES": "es", "PT": "pt"}
+
+@st.cache_data
+def flag_css():
+    rules = []
+    for code, name in FLAG_FILES.items():
+        b64 = base64.b64encode((Path(__file__).parent / "flags" / f"{name}.svg").read_bytes()).decode()
+        rules.append(f'.st-key-lang_{code} button, .st-key-lang_{code} button[kind="primary"] '
+                     f'{{ background-image: url("data:image/svg+xml;base64,{b64}") !important; }}')
+    return "<style>" + "\n".join(rules) + "</style>"
+
+st.markdown(flag_css(), unsafe_allow_html=True)
 
 def set_lang(code):
     st.session_state.lang = code
@@ -1215,7 +1232,7 @@ with st.sidebar:
     time.sleep(.1)
     st.caption(f"🌐 {T['lang_label']}")
     for col, (code, (flag, name)) in zip(st.columns(len(LANGUAGES)), LANGUAGES.items()):
-        col.button(flag, key=f"lang_{code}", help=name, on_click=set_lang, args=(code,),
+        col.button(code, key=f"lang_{code}", help=f"{flag} {name}", on_click=set_lang, args=(code,),
                    type="primary" if code == LANG_CODE else "secondary", use_container_width=True)
 
 st.divider()

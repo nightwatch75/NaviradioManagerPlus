@@ -13,6 +13,7 @@ COPY radio_web.py .
 COPY lang.py .
 COPY genres.py .
 COPY style.css .
+COPY flags/ ./flags/
 COPY audio_handler.js .
 COPY .streamlit/ ./.streamlit/
 

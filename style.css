@@ -262,5 +262,14 @@ html:has(.theme-dark) audio { filter: invert(100%) hue-rotate(180deg) brightness
   .stButton button { width: 100%; }
 }
 
-/* language switcher: six flag buttons side by side in the narrow sidebar */
-[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] button { padding: 0 !important; min-width: 0; font-size: 1.2rem; }
+/* language switcher: six flag buttons side by side; the flag image is injected per language by radio_web.py */
+[data-testid="stSidebar"] [data-testid="stHorizontalBlock"] button { padding: 0 !important; min-width: 0; }
+[class*="st-key-lang_"] button, [class*="st-key-lang_"] button[kind="primary"] {
+  background-color: var(--bg-input) !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: 78% auto !important;
+  border: 1px solid var(--border) !important;
+}
+[class*="st-key-lang_"] button * { opacity: 0; } /* hide the "EN" text, kept for accessibility and as fallback */
+[class*="st-key-lang_"] button[kind="primary"] { box-shadow: 0 0 0 2px var(--accent) !important; }

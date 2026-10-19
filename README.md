@@ -81,5 +81,6 @@ The workflow `.github/workflows/docker.yml` pushes the image to GitHub Container
 ## Credits and license
 
 - Original project: [brunopiras/naviradiomanager](https://github.com/brunopiras/naviradiomanager) by Bruno Piras (MIT).
+- Flags in the language switcher: [flag-icons](https://github.com/lipis/flag-icons) by Panayiotis Lipiridis (MIT); the Spanish and Portuguese ones are simplified drawings.
 - Station directory: [radio-browser.info](https://www.radio-browser.info/), a community project. Please vote for the stations you like.
 - This fork keeps the original [MIT license](LICENSE).
